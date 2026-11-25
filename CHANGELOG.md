@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4 - 2026-11-25
+
+- Removed the "tracking menu" click action: opened from addon code, the menu's entries (which cast tracking spells) are tainted and get blocked. Use the tracking button in the header instead. Saved settings fall back to the ping.
+- Diagnostics: the blocked message shows the SquareMap version.
+
 ## 1.0.3 - 2026-11-25
 
 - Diagnostics: when the game blocks an action from SquareMap, the blocked function is named in chat.

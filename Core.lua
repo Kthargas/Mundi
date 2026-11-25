@@ -26,7 +26,7 @@ ns.DEFAULTS = {
 		compass = true,
 		headerFade = false,
 		combatAlpha = 1,
-		rightClick = "TRACKING",
+		rightClick = "PING",
 		middleClick = "COLLECTOR",
 	},
 	collector = {
@@ -160,7 +160,7 @@ events:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 events:SetScript("OnEvent", function(self, event, arg1, arg2)
 	if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
 		if arg1 == ADDON then
-			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO))
+			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO) .. " v" .. tostring(ns.version))
 			ns.PrintTrace()
 		end
 		return
@@ -174,7 +174,8 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		-- 1.0.1: calendar and world map click actions were removed (they spread taint).
 		for _, key in ipairs({ "rightClick", "middleClick" }) do
 			local v = ns.db.map[key]
-			if v == "CALENDAR" or v == "WORLDMAP" then ns.db.map[key] = ns.DEFAULTS.map[key] end
+			-- 1.0.4: the tracking menu action was removed too (tracking entries cast spells).
+			if v == "CALENDAR" or v == "WORLDMAP" or v == "TRACKING" then ns.db.map[key] = ns.DEFAULTS.map[key] end
 		end
 		if ns.options and ns.options.Register then
 			local ok, err = pcall(ns.options.Register, ns.options)
