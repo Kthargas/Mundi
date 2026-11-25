@@ -131,7 +131,6 @@ function O:Register()
 
 	self:Checkbox(category, "map", "showDiel", L.SHOW_DIEL, L.SHOW_DIEL_TT)
 	self:Checkbox(category, "map", "showInstance", L.SHOW_INSTANCE, L.SHOW_INSTANCE_TT)
-	self:Checkbox(category, "map", "showPing", L.SHOW_PING, L.SHOW_PING_TT)
 	self:Checkbox(category, "map", "compass", L.COMPASS, L.COMPASS_TT)
 	self:Checkbox(category, "map", "headerFade", L.HEADER_FADE, L.HEADER_FADE_TT)
 	self:Slider(category, "map", "combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_TT, 0.1, 1, 0.05, Percent)
