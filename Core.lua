@@ -65,6 +65,7 @@ ns.DEFAULTS = {
 		positions = {},
 		scales = {},
 		layers = {},
+		hidden = {},
 	},
 }
 

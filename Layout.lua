@@ -98,6 +98,12 @@ local function Field(side, label)
 	return { kind = "dropdown", section = "header", field = field, label = label, list = LISTS.field,
 		set = function(value) E:SetField(side, value) end }
 end
+-- Switch an element off (invisible, not clickable) or on again.
+local function Shown(key)
+	return { kind = "check", label = "LAYOUT_SHOW",
+		get = function() return not E:IsHidden(key) end,
+		set = function(value) E:SetHidden(key, not value) end }
+end
 -- For a function that is not in the header: put it into a field.
 local function Place(key)
 	return { kind = "dropdown", label = "HEADER_SLOT", list = LISTS.place,
@@ -135,14 +141,18 @@ local SETTINGS = {
 		Choice("header", "infoRight", "INFO_RIGHT", "info"),
 		Check("map", "hideCompartment", "HIDE_COMPARTMENT"),
 	},
-	tracking = { Place("tracking") },
-	calendar = { Place("calendar") },
+	tracking = { Shown("tracking"), Place("tracking") },
+	calendar = { Shown("calendar"), Place("calendar") },
+	mail = { Shown("mail") },
+	clock = { Shown("clock") },
+	landing = { Shown("landing") },
+	event = { Shown("event") },
 	coords = {
 		CVar("minimapShowPlayerCoords", "COORDS"),
 		Choice("map", "coordsPos", "COORDS_POS", "coordsPos"),
 	},
-	zoomIn = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
-	zoomOut = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
+	zoomIn = { Shown("zoomIn"), Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
+	zoomOut = { Shown("zoomOut"), Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
 	diel = { Check("map", "showDiel", "SHOW_DIEL"), Place("diel") },
 	instance = { Check("map", "showInstance", "SHOW_INSTANCE") },
 	compartment = { Check("map", "hideCompartment", "HIDE_COMPARTMENT"), Place("compartment") },
@@ -272,8 +282,38 @@ function E:SetLayer(key, value)
 end
 
 -- Called by the map module after it has placed everything in its default spot.
+-- Elements that can be switched off on their own (the others have their own setting: day/night,
+-- instance difficulty, addon compartment, coordinates, addon button). Switched off means invisible and
+-- not clickable; Blizzard keeps showing and hiding the frame as usual underneath.
+local HIDEABLE = { mail = true, tracking = true, calendar = true, clock = true, zoomIn = true, zoomOut = true, landing = true, event = true }
+E.HIDEABLE = HIDEABLE
+local hiddenApplied = {}
+
+function E:IsHidden(key)
+	return HIDEABLE[key] and db().hidden[key] and true or false
+end
+
+function E:ApplyHidden(key)
+	local el = byKey[key]
+	local frame = el and el.get()
+	if not (HIDEABLE[key] and frame) then return end
+	local hidden = self:IsHidden(key)
+	if not hidden and not hiddenApplied[key] then return end
+	if InCombatLockdown() and frame:IsProtected() then return end
+	-- The clock in a header text field is handled by the header.
+	if key ~= "clock" or self:IsMoved("clock") then frame:SetAlpha(hidden and 0 or 1) end
+	local mouse = key == "tracking" and frame.Button or frame
+	if mouse.EnableMouse and key ~= "clock" then mouse:EnableMouse(not hidden) end
+	hiddenApplied[key] = hidden or nil
+end
+
+function E:SetHidden(key, hidden)
+	db().hidden[key] = hidden or nil
+end
+
 function E:ApplyPositions()
 	for _, el in ipairs(ELEMENTS) do
+		self:ApplyHidden(el.key)
 		self:ApplyStyle(el.key)
 		if db().positions[el.key] then self:Place(el.key) end
 	end
@@ -324,7 +364,7 @@ function E:ResetElement(key)
 		if self.active then self:UpdateOverlays() self:UpdateDialog() end
 		return
 	end
-	db().scales[key], db().layers[key] = nil, nil
+	db().scales[key], db().layers[key], db().hidden[key] = nil, nil, nil
 	self:ApplyStyle(key)
 	self:Clear(key)
 end
@@ -332,7 +372,7 @@ end
 function E:ResetAll()
 	for _, el in ipairs(ELEMENTS) do
 		local key = el.key
-		if not el.fixed and (db().positions[key] or db().scales[key] or db().layers[key]) then
+		if not el.fixed and (db().positions[key] or db().scales[key] or db().layers[key] or db().hidden[key]) then
 			self:ResetElement(key)
 		end
 	end
@@ -523,8 +563,9 @@ function E:UpdateOverlays()
 			end
 			box:SetSize(w, h)
 			-- Hidden elements (no mail right now, no instance, ...) still get a box to place them.
-			box.label:SetShown(not frame:IsShown() and not el.fixed)
-			box:SetAlpha(frame:IsShown() and 1 or 0.7)
+			local visible = frame:IsShown() and not self:IsHidden(el.key)
+			box.label:SetShown(not visible and not el.fixed)
+			box:SetAlpha(visible and 1 or 0.7)
 			box:Show()
 		elseif box then
 			box:Hide()

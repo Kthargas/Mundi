@@ -134,12 +134,17 @@ end
 
 local function HeaderFrames()
 	local cluster = MinimapCluster
+	-- Elements switched off in the layout editor stay invisible.
+	local function Shown(key, frame)
+		if ns.layout and ns.db.layout and ns.layout:IsHidden(key) then return false end
+		return frame or false
+	end
 	return {
 		cluster.ZoneTextButton,
-		cluster.Tracking,
+		Shown("tracking", cluster.Tracking),
 		-- A clock that is not one of the header's text fields stays invisible.
 		(not ns.map or ns.map.clockUsed ~= false) and _G.TimeManagerClockButton or false,
-		_G.GameTimeFrame,
+		Shown("calendar", _G.GameTimeFrame),
 		_G.AddonCompartmentFrame,
 		cluster.InstanceDifficulty,
 	}

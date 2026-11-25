@@ -2,6 +2,7 @@
 
 ## 1.8.3 - 2026-11-25
 
+- Layout editor: single elements can be switched off with "Show": mail, tracking, calendar, clock, zoom buttons, expansion summary and event button (day/night, instance difficulty, addon compartment, coordinates and the addon button keep their own switch). A switched-off element is invisible and not clickable; in a header field the field stays empty and the bar gets shorter. Right click (reset) switches it on again.
 - Addon button window: the grid layout is gone, the window always lists the buttons with their names. The "Layout" and "Columns" settings are removed.
 
 ## 1.8.2 - 2026-11-25
