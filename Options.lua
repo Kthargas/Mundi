@@ -136,9 +136,7 @@ function O:Register()
 	self:Slider(category, "map", "combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_TT, 0.1, 1, 0.05, Percent)
 
 	Header(layout, L.SECTION_WORLDMAP)
-	local cavesInit = self:Checkbox(category, "worldmap", "caves", L.WM_CAVES, L.WM_CAVES_TT)
-	DependsOn(self:Slider(category, "worldmap", "caveAlpha", L.WM_CAVE_ALPHA, nil, 0.2, 1, 0.05, Percent), cavesInit,
-		function() return ns.db.worldmap.caves end)
+	self:Checkbox(category, "worldmap", "caves", L.WM_CAVES, L.WM_CAVES_TT)
 	self:Checkbox(category, "worldmap", "coords", L.WM_COORDS, L.WM_COORDS_TT)
 
 	Header(layout, L.SECTION_CLICKS)

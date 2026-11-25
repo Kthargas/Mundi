@@ -2,7 +2,7 @@ local ADDON, ns = ...
 local L = ns.L
 
 -- World map additions, all on top of Blizzard's own map:
--- * cave maps: when zoomed in, the cave and building maps of the zone are drawn into the zone map,
+-- * cave maps: zooming in over a cave opens Blizzard's cave map, zooming out goes back to the zone,
 -- * a resize grip that changes the size of the windowed map (the map itself, not the UI scale),
 -- * player and cursor coordinates under the map.
 
@@ -19,7 +19,7 @@ local function Spacer()
 end
 
 ---------------------------------------------------------------------------
--- Cave and building maps drawn into the zone map
+-- Cave and building maps
 ---------------------------------------------------------------------------
 
 local SUB_TYPES = { 5, 4 } -- Enum.UIMapType.Micro, Enum.UIMapType.Dungeon
@@ -42,93 +42,68 @@ local function SubMaps(mapID)
 	return list
 end
 
-function W:CreateCaves()
-	local sc = WorldMapFrame.ScrollContainer
-	local f = CreateFrame("Frame", nil, sc.Child)
-	f:SetPoint("TOPLEFT")
-	f:SetFrameLevel(sc.Child:GetFrameLevel() + 2)
-	f.tiles = {}
-	self.caves = f
-end
-
-function W:ReleaseCaves()
-	for _, tex in ipairs(self.caves.tiles) do tex:Hide() end
-	self.caves.used = 0
-end
-
-function W:AcquireTile()
-	local f = self.caves
-	f.used = f.used + 1
-	local tex = f.tiles[f.used]
-	if not tex then
-		tex = f:CreateTexture(nil, "ARTWORK")
-		f.tiles[f.used] = tex
-	end
-	return tex
-end
-
--- Draws the first art layer of a sub map into its rectangle on the zone map, tile by tile.
-function W:DrawSubMap(sub, canvasW, canvasH)
-	local layers = C_Map.GetMapArtLayers(sub.mapID)
-	local layer = layers and layers[1]
-	local textures = layer and C_Map.GetMapArtLayerTextures(sub.mapID, 1)
-	if not (layer and textures and layer.layerWidth > 0 and layer.layerHeight > 0) then return end
-	local cols = math.ceil(layer.layerWidth / layer.tileWidth)
-	local rows = math.ceil(layer.layerHeight / layer.tileHeight)
-	local scaleX = (sub.right - sub.left) * canvasW / layer.layerWidth
-	local scaleY = (sub.bottom - sub.top) * canvasH / layer.layerHeight
-	for row = 1, rows do
-		for col = 1, cols do
-			local file = textures[(row - 1) * cols + col]
-			if file then
-				local px, py = (col - 1) * layer.tileWidth, (row - 1) * layer.tileHeight
-				local w = math.min(layer.tileWidth, layer.layerWidth - px)
-				local h = math.min(layer.tileHeight, layer.layerHeight - py)
-				local tex = self:AcquireTile()
-				tex:SetTexture(file, nil, nil, "TRILINEAR")
-				tex:SetTexCoord(0, w / layer.tileWidth, 0, h / layer.tileHeight)
-				tex:ClearAllPoints()
-				tex:SetPoint("TOPLEFT", self.caves, "TOPLEFT", sub.left * canvasW + px * scaleX, -(sub.top * canvasH + py * scaleY))
-				tex:SetSize(w * scaleX, h * scaleY)
-				tex:Show()
-			end
+-- The cave under the cursor on a zone map, if any.
+local function CaveAt(mapID, x, y)
+	local best, bestArea
+	for _, sub in ipairs(SubMaps(mapID)) do
+		if x >= sub.left and x <= sub.right and y >= sub.top and y <= sub.bottom then
+			local area = (sub.right - sub.left) * (sub.bottom - sub.top)
+			if not bestArea or area < bestArea then best, bestArea = sub.mapID, area end
 		end
 	end
+	return best
 end
 
-function W:RefreshCaves()
-	local f = self.caves
-	if not f then return end
-	self:ReleaseCaves()
-	self.caveScale = nil
+local function IsCaveType(info)
+	return info and (info.mapType == 5 or info.mapType == 4)
+end
+
+-- Runs after Blizzard's own wheel handling. At the closest zoom over a cave, one more step in opens
+-- Blizzard's cave map; on a cave map at the widest zoom, one more step out goes back to the zone.
+-- The extra step keeps a fast scroll from switching maps by accident.
+function W:OnWheel(delta)
+	if not db().caves then return end
 	local map = WorldMapFrame
+	local sc = map.ScrollContainer
+	if not (sc.HasZoomLevels and sc:HasZoomLevels()) then return end
 	local mapID = map:GetMapID()
 	local info = mapID and C_Map.GetMapInfo(mapID)
-	if not (db().caves and info and info.mapType == 3) then -- Enum.UIMapType.Zone
-		f:Hide()
-		return
+	if not info then return end
+	local target = sc.targetScale or sc:GetCanvasScale()
+
+	if delta > 0 and info.mapType == 3 then
+		local atMax = target >= sc:GetScaleForMaxZoom() - 0.001
+		local x, y = sc:GetNormalizedCursorPosition()
+		local cave = atMax and x and CaveAt(mapID, x, y)
+		if cave and self.edge == "IN" then
+			self.edge = nil
+			map:SetMapID(cave)
+			return
+		end
+		self.edge = cave and "IN" or nil
+	elseif delta < 0 and IsCaveType(info) and info.parentMapID and info.parentMapID > 0 then
+		local atMin = target <= sc:GetScaleForMinZoom() + 0.001
+		if atMin and self.edge == "OUT" then
+			self.edge = nil
+			map:SetMapID(info.parentMapID)
+			return
+		end
+		self.edge = atMin and "OUT" or nil
+	else
+		self.edge = nil
 	end
-	local canvasW, canvasH = map.ScrollContainer.Child:GetSize()
-	f:SetSize(canvasW, canvasH)
-	for _, sub in ipairs(SubMaps(mapID)) do
-		self:DrawSubMap(sub, canvasW, canvasH)
-	end
-	f:SetShown(f.used > 0)
-	self:UpdateCaveAlpha()
 end
 
--- The caves fade in while zooming in: hidden at the widest zoom, fully shown from halfway on.
-function W:UpdateCaveAlpha()
-	local f = self.caves
-	if not (f and f:IsShown()) then return end
-	local sc = WorldMapFrame.ScrollContainer
-	if not (sc.HasZoomLevels and sc:HasZoomLevels()) then return end
-	local scale = sc:GetCanvasScale()
-	if scale == self.caveScale then return end
-	self.caveScale = scale
-	local minScale, maxScale = sc:GetScaleForMinZoom(), sc:GetScaleForMaxZoom()
-	local t = maxScale > minScale and (scale - minScale) / (maxScale - minScale) or 1
-	f:SetAlpha(math.max(0, math.min(1, (t - 0.1) / 0.4)) * db().caveAlpha)
+-- Opening the map inside a cave shows the cave map instead of the zone around it.
+function W:ShowPlayerCave()
+	if not db().caves then return end
+	local map = WorldMapFrame
+	local best = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+	if not best or ns.IsSecret(best) then return end
+	local info = C_Map.GetMapInfo(best)
+	if IsCaveType(info) and info.parentMapID == map:GetMapID() then
+		map:SetMapID(best)
+	end
 end
 
 ---------------------------------------------------------------------------
@@ -145,7 +120,6 @@ function W:ApplySize()
 	local questLog = (map.QuestLog and map.QuestLog:IsShown()) and (map.questLogWidth or 0) or 0
 	map:SetSize(width + questLog, height)
 	map:OnFrameSizeChanged()
-	self:RefreshCaves()
 end
 
 function W:CreateGrip()
@@ -176,7 +150,6 @@ function W:CreateGrip()
 			if map.Minimize and not (map.IsMaximized and map:IsMaximized()) then
 				map:SetSize(DEFAULT_WIDTH + ((map.QuestLog and map.QuestLog:IsShown()) and (map.questLogWidth or 0) or 0), DEFAULT_HEIGHT)
 				map:OnFrameSizeChanged()
-				W:RefreshCaves()
 			end
 			return
 		end
@@ -263,23 +236,23 @@ function W:Setup()
 	if self.hooked or not (map and map.ScrollContainer and map.ScrollContainer.Child) then return end
 	self.hooked = true
 
-	self:CreateCaves()
 	self:CreateGrip()
 	self:CreateCoords()
 
+	map.ScrollContainer:HookScript("OnMouseWheel", function(_, delta) W:OnWheel(delta) end)
 	if map.OnMapChanged then
-		hooksecurefunc(map, "OnMapChanged", function() W:RefreshCaves() end)
+		hooksecurefunc(map, "OnMapChanged", function() W.edge = nil end)
 	end
-	map.ScrollContainer:HookScript("OnUpdate", function() W:UpdateCaveAlpha() end)
 	-- Blizzard sets the window size when the map opens, minimizes or toggles the quest log; ours wins afterwards.
 	for _, method in ipairs({ "Minimize", "SetQuestLogPanelShown" }) do
 		if map[method] then hooksecurefunc(map, method, function() W:ApplySize() W:UpdateGrip() end) end
 	end
-	if map.Maximize then hooksecurefunc(map, "Maximize", function() W:UpdateGrip() W:RefreshCaves() end) end
+	if map.Maximize then hooksecurefunc(map, "Maximize", function() W:UpdateGrip() end) end
 	map:HookScript("OnShow", function()
+		W.edge = nil
 		W:UpdateGrip()
 		W:ApplySize()
-		W:RefreshCaves()
+		W:ShowPlayerCave()
 	end)
 	self:Apply()
 end
@@ -305,6 +278,5 @@ function W:Apply()
 	if self.coords then self.coords:SetShown(db().coords) end
 	if WorldMapFrame:IsShown() then
 		self:ApplySize()
-		self:RefreshCaves()
 	end
 end

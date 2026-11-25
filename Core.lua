@@ -30,7 +30,6 @@ ns.DEFAULTS = {
 	},
 	worldmap = {
 		caves = true,
-		caveAlpha = 1,
 		width = nil,
 		coords = true,
 	},
