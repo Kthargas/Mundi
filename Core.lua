@@ -25,7 +25,7 @@ ns.DEFAULTS = {
 		compass = true,
 		headerFade = false,
 		combatAlpha = 1,
-		rightClick = "PING",
+		rightClick = "TRACKING",
 		middleClick = "COLLECTOR",
 	},
 	collector = {
@@ -170,11 +170,11 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		SquareMapDB = SquareMapDB or {}
 		CopyDefaults(ns.DEFAULTS, SquareMapDB)
 		ns.db = SquareMapDB
-		-- 1.0.1: calendar and world map click actions were removed (they spread taint).
-		for _, key in ipairs({ "rightClick", "middleClick" }) do
-			local v = ns.db.map[key]
-			-- 1.0.4: the tracking menu action was removed too (tracking entries cast spells).
-			if v == "CALENDAR" or v == "WORLDMAP" or v == "TRACKING" then ns.db.map[key] = ns.DEFAULTS.map[key] end
+		-- 1.0.6: the click actions are back (the blocked popup came from the ping listener). Versions
+		-- 1.0.1 to 1.0.5 had reset right click to the ping; give it the tracking menu again once.
+		if not ns.db.map.clicksRestored then
+			if ns.db.map.rightClick == "PING" then ns.db.map.rightClick = "TRACKING" end
+			ns.db.map.clicksRestored = true
 		end
 		if ns.options and ns.options.Register then
 			local ok, err = pcall(ns.options.Register, ns.options)

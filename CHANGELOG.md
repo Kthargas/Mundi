@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6 - 2026-11-25
+
+- The click actions are back: tracking menu, calendar and world map, plus a new "SquareMap options" action. The blocked popup turned out to come from the ping listener (fixed in 1.0.5), not from these actions. The world map is not opened in combat, because the game blocks that.
+- Right click opens the tracking menu again, also for settings that 1.0.1 to 1.0.5 had reset to the ping.
+
 ## 1.0.5 - 2026-11-25
 
 - Fixed: "SquareMap has been blocked from an action only available to the Blizzard UI" at login. SquareMap listened for minimap pings (to show who pinged), and registering that ping callback is reserved for Blizzard code in this client. The "show who pings" feature is removed.

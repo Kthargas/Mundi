@@ -195,13 +195,45 @@ end
 
 E.ACTIONS = {
 	{ key = "PING", label = L.ACTION_PING },
+	{ key = "TRACKING", label = L.ACTION_TRACKING },
+	{ key = "CALENDAR", label = L.ACTION_CALENDAR },
+	{ key = "WORLDMAP", label = L.ACTION_WORLDMAP },
 	{ key = "COLLECTOR", label = L.ACTION_COLLECTOR },
+	{ key = "OPTIONS", label = L.ACTION_OPTIONS },
 	{ key = "NONE", label = L.ACTION_NONE },
 }
 
 function E:RunAction(action)
-	-- No tracking menu here: opened from addon code, its entries (which cast tracking spells) are tainted.
-	if action == "COLLECTOR" then
+	if action == "TRACKING" then
+		-- The tracking ("search") menu of the header button, the same menu a click on that button opens.
+		local tracking = MinimapCluster.Tracking and MinimapCluster.Tracking.Button
+		if tracking and tracking.OpenMenu then
+			if tracking.IsMenuOpen and tracking:IsMenuOpen() then
+				tracking:CloseMenu()
+			else
+				tracking:OpenMenu()
+			end
+			return true
+		end
+	elseif action == "CALENDAR" then
+		if ToggleCalendar then
+			ToggleCalendar()
+			return true
+		end
+	elseif action == "WORLDMAP" then
+		-- Panels cannot be opened from addon code in combat.
+		if InCombatLockdown() then
+			UIErrorsFrame:AddMessage(ERR_NOT_IN_COMBAT or L.NOT_IN_COMBAT, 1, 0.1, 0.1)
+			return true
+		end
+		if ToggleWorldMap then
+			ToggleWorldMap()
+			return true
+		end
+	elseif action == "OPTIONS" then
+		ns.OpenOptions()
+		return true
+	elseif action == "COLLECTOR" then
 		if ns.collector then
 			ns.collector:Toggle()
 			return true

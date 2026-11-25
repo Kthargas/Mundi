@@ -46,7 +46,7 @@ own settings window.
 - Auto zoom out after a few seconds.
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
-- Right and middle click on the map: addon button window or just the Blizzard ping.
+- Right and middle click on the map: tracking menu, calendar, world map, addon button window, options or just the Blizzard ping.
 - Key bindings for the addon button window and the options; entry in the addon compartment.
 
 ## Installation
