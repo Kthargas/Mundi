@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0 - 2026-11-25
+
+- World map caves, reworked: instead of drawing caves into the zone map, zooming in over a cave (one more scroll at the closest zoom) opens Blizzard's cave map, and one more scroll out at the widest zoom goes back to the zone. Opening the map inside a cave shows the cave map.
+- Fixed: the world map resize grip was hard to grab. Blizzard's border frame lay over it, so only a pixel outside the frame reacted. The grip now sits above the border and has a larger hit area.
+
 ## 1.2.0 - 2026-11-25
 
 - World map, reworked after feedback:

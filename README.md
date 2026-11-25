@@ -29,7 +29,7 @@ own settings window.
 
 ### World map
 
-- Caves and buildings: zoom into a zone map and its cave and building maps fade in at their place.
+- Caves: scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return; inside a cave the map opens on the cave.
 - Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets).
 - Player and cursor coordinates under the map.
 
