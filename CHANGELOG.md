@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1 - 2026-11-25
+
+- Fixed: the first time the layout editor was opened in a session, it showed the dialog but nothing could be edited and "Done" did nothing; only a second open worked. Creating the dialog hid it once, and that ran the "editor closed" handler on the editor that was just starting.
+
 ## 1.6.0 - 2026-11-25
 
 - Layout editor: every setting is now available in the editor, per element. Click an element and the dialog shows its settings:
