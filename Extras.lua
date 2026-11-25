@@ -137,7 +137,8 @@ local function HeaderFrames()
 	return {
 		cluster.ZoneTextButton,
 		cluster.Tracking,
-		_G.TimeManagerClockButton,
+		-- A clock that is not one of the header's text fields stays invisible.
+		(not ns.map or ns.map.clockUsed ~= false) and _G.TimeManagerClockButton or false,
 		_G.GameTimeFrame,
 		_G.AddonCompartmentFrame,
 		cluster.InstanceDifficulty,

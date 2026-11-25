@@ -845,12 +845,10 @@ function C:CreateButton()
 	b:SetScript("OnLeave", GameTooltip_Hide)
 	b:SetScript("OnDragStart", function(self)
 		self:LockHighlight()
-		-- Dragging the button along the map edge replaces a spot from the layout editor or the header slot.
+		-- In a header field the button is part of the header and does not move.
+		if ns.map and ns.map:IsDocked("collector") then return end
+		-- Dragging the button along the map edge replaces a spot from the layout editor.
 		if ns.db.layout then ns.db.layout.positions.collector = nil end
-		if ns.map and ns.map:IsDocked("collector") then
-			ns.db.header.dock.collector = "FREE"
-			ns.map:Reapply()
-		end
 		self:SetScript("OnUpdate", function()
 			local mx, my = Minimap:GetCenter()
 			local scale = Minimap:GetEffectiveScale()

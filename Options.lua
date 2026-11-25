@@ -113,6 +113,15 @@ function O:Register()
 	self:Slider(category, "map", "headerGap", L.HEADER_GAP, L.HEADER_GAP_TT, -10, 20, 1)
 	self:Checkbox(category, "map", "headerFull", L.HEADER_FULL, L.HEADER_FULL_TT)
 	self:Checkbox(category, "header", "background", L.HEADER_BG, L.HEADER_BG_TT)
+	local fields = { { key = "NONE", label = L.FIELD_EMPTY } }
+	for _, key in ipairs(ns.map and ns.map.DOCKABLE or {}) do fields[#fields + 1] = { key = key, label = L["EL_" .. key:upper()] } end
+	self:Dropdown(category, "header", "left", L.FIELD_LEFT, nil, fields)
+	self:Dropdown(category, "header", "right", L.FIELD_RIGHT, nil, fields)
+	local infos = {}
+	for _, info in ipairs(ns.map and ns.map.INFO or {}) do infos[#infos + 1] = { key = info.key, label = info.label } end
+	self:Dropdown(category, "header", "infoLeft", L.INFO_LEFT, nil, infos)
+	self:Dropdown(category, "header", "infoCenter", L.INFO_CENTER, nil, infos)
+	self:Dropdown(category, "header", "infoRight", L.INFO_RIGHT, nil, infos)
 	self:Checkbox(category, "map", "hideCompartment", L.HIDE_COMPARTMENT, L.HIDE_COMPARTMENT_TT)
 
 	self:CVarCheckbox(category, "rotateMinimap", "SQUAREMAP_CVAR_ROTATE", L.ROTATE, L.ROTATE_TT)
