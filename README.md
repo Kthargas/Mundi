@@ -29,9 +29,9 @@ own settings window.
 
 ### World map
 
-- Seamless zoom: scroll in past the closest zoom to open the zone, cave or dungeon map under the cursor,
-  scroll out past the widest zoom to go up one map.
-- Scale for the windowed world map; player and cursor coordinates under the map.
+- Caves and buildings: zoom into a zone map and its cave and building maps fade in at their place.
+- Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets).
+- Player and cursor coordinates under the map.
 
 ### Addon button collector
 - One classic minimap button collects the buttons of other addons (LibDBIcon buttons and other named

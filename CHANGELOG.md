@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - 2026-11-25
+
+- World map, reworked after feedback:
+  - New: caves and buildings. When you zoom into a zone map, the cave and building maps of that zone are drawn into it, and they fade in while zooming.
+  - New: resize grip at the bottom right of the windowed map. It changes the window size, not the UI scale, so text keeps its size. Right click on the grip restores the default size.
+  - Removed the seamless zoom between maps and the scale slider.
+
 ## 1.1.0 - 2026-11-25
 
 - New: world map improvements, built on Blizzard's own map with hooks only.
