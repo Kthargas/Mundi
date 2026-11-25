@@ -16,7 +16,7 @@ still moves and scales the minimap.
 
 No custom textures are shipped. The frame is drawn from Blizzard's own nine-slice art (the same pieces used by
 dialogs, tooltips and panels), the windows use Blizzard's frame templates and the options live in the game's
-own settings window.
+own settings window (the action buttons on a separate "Actions" page under SquareMap).
 
 ### Minimap
 - Square map, size 140 to 400 pixels.

@@ -175,21 +175,52 @@ function O:Register()
 	Dep(self:Checkbox(category, "collector", "closeOnClick", L.CLOSE_ON_CLICK, L.CLOSE_ON_CLICK_TT))
 	Dep(self:Slider(category, "collector", "autoHide", L.AUTO_HIDE, L.AUTO_HIDE_TT, 0, 10, 1, Seconds))
 
-	if CreateSettingsButtonInitializer then
-		layout:AddInitializer(CreateSettingsButtonInitializer(L.MANAGE, L.MANAGE_BTN, function()
-			if ns.collector then ns.collector:ShowManager() end
-		end, L.MANAGE_TT, true))
-		layout:AddInitializer(CreateSettingsButtonInitializer(L.SORT_RESET, L.SORT_RESET_BTN, function()
-			if ns.collector then ns.collector:ResetOrder() end
-		end, L.SORT_RESET_TT, true))
-
-		Header(layout, L.SECTION_INFO)
-		layout:AddInitializer(CreateSettingsButtonInitializer(L.RESET_ALL, L.RESET_ALL_BTN, function()
-			StaticPopup_Show("SQUAREMAP_RESET")
-		end, nil, true))
-	end
-
+	-- Taint: the settings list reuses its control frames for every category. A button control first
+	-- shown for an addon page stays tainted, and when Blizzard later reuses it for the Discord button
+	-- (Social), C_Discord.IsUserOAuthed() gets blocked. So the action buttons live on their own page,
+	-- with frames that belong to SquareMap alone.
 	Settings.RegisterAddOnCategory(category)
+	if Settings.RegisterCanvasLayoutSubcategory then
+		self.actionsCategory = Settings.RegisterCanvasLayoutSubcategory(category, self:CreateActionsPanel(), L.SECTION_ACTIONS)
+	end
+end
+
+function O:CreateActionsPanel()
+	local panel = CreateFrame("Frame")
+	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightHuge")
+	title:SetPoint("TOPLEFT", 7, -22)
+	title:SetText(L.SECTION_ACTIONS)
+	local divider = panel:CreateTexture(nil, "ARTWORK")
+	divider:SetAtlas("Options_HorizontalDivider", true)
+	divider:SetPoint("TOP", 0, -50)
+
+	local rows = {
+		{ L.MANAGE, L.MANAGE_BTN, L.MANAGE_TT, function() if ns.collector then ns.collector:ShowManager() end end },
+		{ L.SORT_RESET, L.SORT_RESET_BTN, L.SORT_RESET_TT, function() if ns.collector then ns.collector:ResetOrder() end end },
+		{ L.RESET_ALL, L.RESET_ALL_BTN, nil, function() StaticPopup_Show("SQUAREMAP_RESET") end },
+	}
+	local y = -70
+	for _, row in ipairs(rows) do
+		local label = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+		label:SetPoint("TOPLEFT", 37, y)
+		label:SetText(row[1])
+		local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+		button:SetSize(200, 26)
+		button:SetPoint("TOPLEFT", panel, "TOPLEFT", 300, y + 6)
+		button:SetText(row[2])
+		button:SetScript("OnClick", row[4])
+		if row[3] then
+			local desc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+			desc:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -6)
+			desc:SetPoint("RIGHT", panel, "RIGHT", -20, 0)
+			desc:SetJustifyH("LEFT")
+			desc:SetText(row[3])
+			y = y - 62
+		else
+			y = y - 40
+		end
+	end
+	return panel
 end
 
 function O:Refresh()
