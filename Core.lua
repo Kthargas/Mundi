@@ -29,8 +29,9 @@ ns.DEFAULTS = {
 		middleClick = "COLLECTOR",
 	},
 	worldmap = {
-		seamlessZoom = true,
-		scale = 1,
+		caves = true,
+		caveAlpha = 1,
+		width = nil,
 		coords = true,
 	},
 	collector = {
