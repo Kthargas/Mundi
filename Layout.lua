@@ -70,8 +70,20 @@ local LISTS = {
 	style = function() return { { key = "PANEL", label = L.STYLE_PANEL }, { key = "COMPACT", label = L.STYLE_COMPACT } } end,
 	layout = function() return { { key = "GRID", label = L.LAYOUT_GRID }, { key = "LIST", label = L.LAYOUT_LIST } } end,
 	anchor = function() return { { key = "BUTTON", label = L.ANCHOR_BUTTON }, { key = "FREE", label = L.ANCHOR_FREE } } end,
-	dock = function()
-		return { { key = "LEFT", label = L.SLOT_LEFT }, { key = "RIGHT", label = L.SLOT_RIGHT }, { key = "FREE", label = L.SLOT_FREE } }
+	place = function()
+		return { { key = "NONE", label = L.SLOT_FREE }, { key = "LEFT", label = L.SLOT_LEFT }, { key = "RIGHT", label = L.SLOT_RIGHT } }
+	end,
+	field = function()
+		local list = { { key = "NONE", label = L.FIELD_EMPTY } }
+		for _, key in ipairs(ns.map and ns.map.DOCKABLE or {}) do
+			list[#list + 1] = { key = key, label = L["EL_" .. key:upper()] }
+		end
+		return list
+	end,
+	info = function()
+		local list = {}
+		for _, info in ipairs(ns.map and ns.map.INFO or {}) do list[#list + 1] = { key = info.key, label = info.label } end
+		return list
 	end,
 }
 
@@ -81,17 +93,23 @@ local function Slider(section, field, label, minValue, maxValue, step, format)
 end
 local function Choice(section, field, label, list) return { kind = "dropdown", section = section, field = field, label = label, list = LISTS[list] } end
 local function CVar(cvar, label) return { kind = "cvar", cvar = cvar, label = label } end
--- Header slot of a button: left or right in the header bar, or free.
-local function Dock(key, label)
-	return { kind = "dropdown", label = label or "HEADER_SLOT", list = LISTS.dock, dockKey = key,
-		get = function() return ns.db.header.dock[key] end,
-		set = function(value) E:SetDock(key, value) end }
+-- Square field at either end of the header: which function sits there.
+local function Field(side, label)
+	local field = side == "LEFT" and "left" or "right"
+	return { kind = "dropdown", section = "header", field = field, label = label, list = LISTS.field,
+		set = function(value) E:SetField(side, value) end }
 end
--- Backing art of a button (plate or ring).
-local function ButtonBg(key)
-	return { kind = "check", label = "BUTTON_BG", bgKey = key,
-		get = function() return ns.db.header.buttonBg[key] end,
-		set = function(value) ns.db.header.buttonBg[key] = value end }
+-- For a function that is not in the header: put it into a field.
+local function Place(key)
+	return { kind = "dropdown", label = "HEADER_SLOT", list = LISTS.place,
+		get = function()
+			if ns.db.header.left == key then return "LEFT" end
+			if ns.db.header.right == key then return "RIGHT" end
+			return "NONE"
+		end,
+		set = function(side)
+			if side ~= "NONE" then E:SetField(side, key) end
+		end }
 end
 
 local SETTINGS = {
@@ -113,28 +131,27 @@ local SETTINGS = {
 		Check("map", "headerFull", "HEADER_FULL"),
 		Check("map", "headerFade", "HEADER_FADE"),
 		Check("header", "background", "HEADER_BG"),
-		Dock("tracking", "EL_TRACKING"),
-		Dock("calendar", "EL_CALENDAR"),
-		Dock("diel", "EL_DIEL"),
-		Dock("compartment", "EL_COMPARTMENT"),
-		Dock("collector", "EL_COLLECTOR"),
+		Field("LEFT", "FIELD_LEFT"),
+		Field("RIGHT", "FIELD_RIGHT"),
+		Choice("header", "infoLeft", "INFO_LEFT", "info"),
+		Choice("header", "infoCenter", "INFO_CENTER", "info"),
+		Choice("header", "infoRight", "INFO_RIGHT", "info"),
 		Check("map", "hideCompartment", "HIDE_COMPARTMENT"),
 	},
-	tracking = { Dock("tracking"), ButtonBg("tracking") },
-	calendar = { Dock("calendar") },
+	tracking = { Place("tracking") },
+	calendar = { Place("calendar") },
 	coords = {
 		CVar("minimapShowPlayerCoords", "COORDS"),
 		Choice("map", "coordsPos", "COORDS_POS", "coordsPos"),
 	},
 	zoomIn = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
 	zoomOut = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
-	diel = { Check("map", "showDiel", "SHOW_DIEL"), Dock("diel"), ButtonBg("diel") },
+	diel = { Check("map", "showDiel", "SHOW_DIEL"), Place("diel") },
 	instance = { Check("map", "showInstance", "SHOW_INSTANCE") },
-	compartment = { Check("map", "hideCompartment", "HIDE_COMPARTMENT"), Dock("compartment"), ButtonBg("compartment") },
+	compartment = { Check("map", "hideCompartment", "HIDE_COMPARTMENT"), Place("compartment") },
 	collector = {
 		Check("collector", "enabled", "COLLECTOR_ENABLE"),
-		Dock("collector"),
-		ButtonBg("collector"),
+		Place("collector"),
 		Choice("collector", "icon", "COLLECTOR_ICON", "icon"),
 		Check("collector", "showCount", "SHOW_COUNT"),
 		Choice("collector", "style", "WINDOW_STYLE", "style"),
@@ -281,28 +298,17 @@ function E:Clear(key)
 	self:Refresh(key)
 end
 
--- Puts a button into a header slot (at a place in its order, default at the end) or makes it free.
-function E:SetDock(key, side, index)
+-- Puts a function into the left or right header field ("NONE" empties it). In a field it is part of
+-- the header: its spot, size and layer from the editor are dropped.
+function E:SetField(side, key)
 	local header = ns.db.header
-	if side == "LEFT" or side == "RIGHT" then
-		db().positions[key] = nil
+	local own, other = side == "LEFT" and "left" or "right", side == "LEFT" and "right" or "left"
+	header[own] = key
+	if key ~= "NONE" then
+		if header[other] == key then header[other] = "NONE" end
+		db().positions[key], db().scales[key], db().layers[key] = nil, nil, nil
 		original[key] = nil
-		local keys = {}
-		for _, other in ipairs(ns.map:GetSlot(side)) do
-			if other ~= key then keys[#keys + 1] = other end
-		end
-		index = math.max(1, math.min(index or (#keys + 1), #keys + 1))
-		table.insert(keys, index, key)
-		for i, other in ipairs(keys) do header.order[other] = i end
 	end
-	header.dock[key] = side
-end
-
-local function DefaultDock(key)
-	local header, defaults = ns.db.header, ns.DEFAULTS.header
-	header.dock[key] = defaults.dock[key]
-	header.order[key] = defaults.order[key]
-	if defaults.buttonBg[key] ~= nil then header.buttonBg[key] = defaults.buttonBg[key] end
 end
 
 -- Position, size and layer back to Blizzard's.
@@ -312,12 +318,11 @@ function E:ResetElement(key)
 		-- Map and header cannot move; right click puts their settings back instead.
 		for _, spec in ipairs(SETTINGS[key] or {}) do
 			if spec.section then ns.db[spec.section][spec.field] = ns.DEFAULTS[spec.section][spec.field] end
-			if spec.dockKey then
-				local other = spec.dockKey
-				-- Back into its default slot; one moved with the editor leaves its spot for that.
-				if ns.DEFAULTS.header.dock[other] ~= "FREE" then db().positions[other] = nil end
-				DefaultDock(other)
-			end
+		end
+		if key == "header" then
+			-- The default functions go back into their fields.
+			self:SetField("LEFT", ns.db.header.left)
+			self:SetField("RIGHT", ns.db.header.right)
 		end
 		ns:ApplyAll()
 		if ns.options and ns.options.Refresh then ns.options:Refresh() end
@@ -325,21 +330,14 @@ function E:ResetElement(key)
 		return
 	end
 	db().scales[key], db().layers[key] = nil, nil
-	if el and el.dock then DefaultDock(key) end
 	self:ApplyStyle(key)
 	self:Clear(key)
-end
-
-local function IsDefaultDock(key)
-	local header, defaults = ns.db.header, ns.DEFAULTS.header
-	return header.dock[key] == defaults.dock[key] and header.order[key] == defaults.order[key]
-		and (defaults.buttonBg[key] == nil or header.buttonBg[key] == defaults.buttonBg[key])
 end
 
 function E:ResetAll()
 	for _, el in ipairs(ELEMENTS) do
 		local key = el.key
-		if not el.fixed and (db().positions[key] or db().scales[key] or db().layers[key] or (el.dock and not IsDefaultDock(key))) then
+		if not el.fixed and (db().positions[key] or db().scales[key] or db().layers[key]) then
 			self:ResetElement(key)
 		end
 	end
@@ -413,7 +411,6 @@ local function ShowTooltip(box)
 		GameTooltip:AddLine(L.LAYOUT_TT_RESET_SETTINGS, 1, 1, 1, true)
 	else
 		GameTooltip:AddLine(L.LAYOUT_TT_DRAG, 1, 1, 1, true)
-		if box.element.dock then GameTooltip:AddLine(L.LAYOUT_TT_DOCK, 1, 1, 1, true) end
 		GameTooltip:AddLine(L.LAYOUT_TT_WHEEL, 1, 1, 1, true)
 		GameTooltip:AddLine(L.LAYOUT_TT_LAYER, 1, 1, 1, true)
 		GameTooltip:AddLine(L.LAYOUT_TT_RESET, 1, 1, 1, true)
@@ -464,27 +461,6 @@ function E:CreateBox(el)
 	return box
 end
 
--- Where a button dropped at the cursor goes in the header: side and place in that slot, or nil
--- when the cursor is not over the header bar.
-function E:HeaderDrop(key)
-	local zone = MinimapCluster and MinimapCluster.ZoneTextButton
-	if not (zone and zone:IsVisible() and ns.map) then return nil end
-	local scale = zone:GetEffectiveScale()
-	local x, y = GetCursorPosition()
-	x, y = x / scale, y / scale
-	local cx, cy = zone:GetCenter()
-	if not cx then return nil end
-	if math.abs(x - cx) > zone:GetWidth() / 2 + 12 or math.abs(y - cy) > zone:GetHeight() / 2 + 10 then return nil end
-	local side = x < cx and "LEFT" or "RIGHT"
-	local index = 1
-	for _, other in ipairs(ns.map:GetSlot(side)) do
-		local frame = other ~= key and ns.map.DockFrame(other)
-		local fx = frame and frame:IsShown() and frame:GetCenter()
-		if fx and fx * frame:GetEffectiveScale() / scale < x then index = index + 1 end
-	end
-	return side, index
-end
-
 local DRAG_START = 4
 
 function E:StartDrag(box)
@@ -511,33 +487,15 @@ function E:StartDrag(box)
 		dx = math.max(-halfW - 80, math.min(halfW + 80, Snap(dx, halfW)))
 		dy = math.max(-halfH - 80, math.min(halfH + 80, Snap(dy, halfH)))
 		db().positions[el.key] = { x = dx / Minimap:GetWidth(), y = dy / Minimap:GetHeight() }
-		if el.dock and ns.map:IsDocked(el.key) then
-			ns.db.header.dock[el.key] = "FREE"
-			if ns.map.Reapply then ns.map:Reapply() end
-		end
 		E:Place(el.key)
-		E:ShowDropTarget(el.dock and E:HeaderDrop(el.key) ~= nil)
 	end)
-end
-
--- The header box lights up while a button is held over it.
-function E:ShowDropTarget(on)
-	local header = self.boxes and self.boxes.header
-	if not header then return end
-	SetKit(header, (on or self.selected == header) and SELECTED_KIT or HIGHLIGHT_KIT)
 end
 
 function E:StopDrag(box)
 	if not box:GetScript("OnUpdate") then return end
 	box:SetScript("OnUpdate", nil)
-	local el = box.element
-	if box.moved and el.dock then
-		local side, index = self:HeaderDrop(el.key)
-		if side then self:SetDock(el.key, side, index) end
-	end
 	box.moved = nil
-	self:ShowDropTarget(false)
-	self:Refresh(el.key)
+	self:Refresh(box.element.key)
 end
 
 function E:Select(box)
@@ -554,6 +512,8 @@ function E:UpdateOverlays()
 		local box = self.boxes[el.key]
 		local frame = el.get()
 		if frame and el.off and el.off() then frame = nil end
+		-- In a header field it is part of the header (select the header for it).
+		if frame and el.dock and ns.map and ns.map:IsDocked(el.key) then frame = nil end
 		if frame then
 			box = box or self:CreateBox(el)
 			self.boxes[el.key] = box
@@ -756,6 +716,12 @@ function E:UpdateDialog()
 	local f = self.dialog
 	if not f then return end
 	local box = self.selected
+	-- An element that just went into a header field has no box any more: show the header instead.
+	local header = self.boxes and self.boxes.header
+	if box and not box:IsShown() and header and header:IsShown() and box ~= header then
+		self:Select(header)
+		return
+	end
 	local el = box and box.element
 	f.selected:SetText(el and L[el.label] or L.LAYOUT_NONE)
 

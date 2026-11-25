@@ -252,16 +252,19 @@ function M:ApplyCoords()
 end
 
 ---------------------------------------------------------------------------
--- Header: zone name and clock in one bar with a slot on the left and on the right. Tracking,
--- calendar, addon compartment, day/night and the collector button can sit in a slot (one bar with
--- the header) or be placed freely with the layout editor.
+-- Header: one bar with a square field at each end and up to three text fields in between.
+-- A field holds one function (tracking, calendar, day/night, addon compartment or the collector
+-- button), shown as a bare icon that is part of the bar. Functions in no field are normal elements
+-- with their own look that the layout editor places freely.
 ---------------------------------------------------------------------------
 
 local HEADER_WIDTH = 152       -- Blizzard's header button
 local HEADER_SLICE = 12        -- end caps of the header art that must not stretch
-local SLOT_PAD = 3             -- space between the bar ends and the first button
+local ICON_INSET = 4           -- icon size = field size minus this on each side
+local TEXT_PAD = 8             -- space between a field (or the bar end) and the text
+local TEXT_GAP = 10            -- space between two text fields
 
-M.DOCKABLE = { "tracking", "calendar", "compartment", "diel", "collector" }
+M.DOCKABLE = { "tracking", "calendar", "diel", "compartment", "collector" }
 
 local function DockFrame(key)
 	local cluster = MinimapCluster
@@ -273,36 +276,25 @@ local function DockFrame(key)
 end
 M.DockFrame = DockFrame
 
-function M:GetDock(key)
+-- The function in the left or right field, or nil.
+function M:GetField(side)
 	local header = ns.db.header
-	return header and header.dock[key] or "FREE"
+	local key = side == "LEFT" and header.left or header.right
+	if key == "NONE" or not key then return nil end
+	-- One function can only be in one field; the left one wins.
+	if side == "RIGHT" and key == header.left then return nil end
+	return key
 end
 
 function M:IsDocked(key)
-	local dock = self:GetDock(key)
-	return dock == "LEFT" or dock == "RIGHT"
+	return key ~= nil and (self:GetField("LEFT") == key or self:GetField("RIGHT") == key)
 end
 
--- Elements that take room in the header right now.
 local function IsActive(key, frame)
 	if key == "diel" then return ns.db.map.showDiel end
 	if key == "collector" then return ns.db.collector.enabled end
 	if key == "compartment" and ns.db.map.hideCompartment then return false end
 	return frame:IsShown()
-end
-
--- Day/night and the collector button are bigger than the header: in a slot they are scaled to its height.
-local SCALED = { diel = true, collector = true }
-
--- Keys docked on one side, in their order from left to right.
-function M:GetSlot(side)
-	local header = ns.db.header
-	local keys = {}
-	for _, key in ipairs(self.DOCKABLE) do
-		if header.dock[key] == side then keys[#keys + 1] = key end
-	end
-	table.sort(keys, function(a, b) return (header.order[a] or 0) < (header.order[b] or 0) end)
-	return keys
 end
 
 local function SetHeaderTexture(texture)
@@ -317,77 +309,208 @@ local function SetHeaderTexture(texture)
 	end
 end
 
--- Invisible anchors inside the header bar, one per docked element. Anchoring the element's centre to
--- one with no offset keeps it in place whatever its own scale is.
-function M:GetSlotAnchor(zone, key)
-	self.slotAnchors = self.slotAnchors or {}
-	local anchor = self.slotAnchors[key]
-	if not anchor then
-		anchor = CreateFrame("Frame", nil, zone)
-		anchor:SetSize(1, 1)
-		self.slotAnchors[key] = anchor
-	end
-	return anchor
+local function AtlasExists(name)
+	return name and C_Texture and C_Texture.GetAtlasInfo(name) ~= nil
 end
 
--- Lays out one slot. Returns its width in header units.
-function M:LayoutSlot(zone, side, height)
-	local zoneScale = zone:GetEffectiveScale()
-	local items, width = {}, 0
-	for _, key in ipairs(self:GetSlot(side)) do
-		local frame = DockFrame(key)
-		if frame and IsActive(key, frame) and not (InCombatLockdown() and frame:IsProtected()) then
-			local w, h = frame:GetWidth(), frame:GetHeight()
-			if key == "tracking" and frame.Button then w, h = frame.Button:GetWidth(), frame.Button:GetHeight() end
-			local parent = frame:GetParent()
-			local parentScale = parent and parent:GetEffectiveScale() or 1
-			local own = 1
-			if SCALED[key] and h and h > 0 then
-				own = height * zoneScale / (h * parentScale)
-				frame:SetScale(own)
-			end
-			-- Size from the layout editor comes on top (applied after this by the layout module).
-			local user = ns.layout and ns.layout:GetScale(key) or 1
-			local itemWidth = (w or 0) * parentScale * own * user / zoneScale
-			items[#items + 1] = { key = key, frame = frame, width = itemWidth }
-			width = width + itemWidth
+-- Bare icons (no plate or frame), first one that exists in this client wins.
+local function CalendarDay()
+	local day = _G.GameTimeFrame and _G.GameTimeFrame.calendarDay
+	if not day and C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime then
+		local now = C_DateAndTime.GetCurrentCalendarTime()
+		day = now and now.monthDay
+	end
+	return day or tonumber(date("%d")) or 1
+end
+
+local ICONS = {
+	tracking = function() return { atlas = { "ui-hud-minimap-tracking-up", "common-search-magnifyingglass" }, file = "Interface\\Common\\UI-Searchbox-Icon" } end,
+	calendar = function()
+		local day = CalendarDay()
+		return { atlas = { ("ui-hud-calendar-%d-up"):format(day) }, file = "Interface\\Calendar\\UI-Calendar-Button",
+			coords = { 0, 0.390625, 0, 0.78125 }, day = day }
+	end,
+}
+M.FIELD_ATLASES = { "ui-hud-minimap-tracking-up", "common-search-magnifyingglass", "ui-hud-calendar-1-up" }
+
+local function SetIcon(texture, spec)
+	texture:SetTexCoord(0, 1, 0, 1)
+	for _, atlas in ipairs(spec.atlas or {}) do
+		if AtlasExists(atlas) then
+			texture:SetAtlas(atlas)
+			return true
 		end
 	end
-	if #items == 0 then return 0, items end
-	return width + SLOT_PAD, items
+	texture:SetTexture(spec.file)
+	if spec.coords then texture:SetTexCoord(unpack(spec.coords)) end
+	return false
 end
 
-local function PlaceItems(self, zone, items, startX)
-	local x = startX
-	for _, item in ipairs(items) do
-		local anchor = self:GetSlotAnchor(zone, item.key)
-		anchor:ClearAllPoints()
-		anchor:SetPoint("CENTER", zone, "LEFT", x + item.width / 2, 0)
-		item.frame:ClearAllPoints()
-		item.frame:SetPoint("CENTER", anchor, "CENTER", 0, 0)
-		item.frame:SetFrameLevel(zone:GetFrameLevel() + 2)
-		self.docked[item.key] = true
-		x = x + item.width
+-- The art of a function's own button, hidden while it sits in a field.
+local function OwnArt(key, frame)
+	if key == "tracking" then
+		local button = frame.Button
+		return { frame.Background, button and button.StateTexture, button and button.AddTexture }
+	end
+	if key == "calendar" or key == "compartment" then return { frame.StateTexture, frame.AddTexture } end
+	if key == "collector" then return { frame.border, frame.background } end
+	if key == "diel" then
+		if not M.dielRing then
+			for _, region in ipairs({ frame:GetRegions() }) do
+				if region ~= frame.Background and region.GetObjectType and region:GetObjectType() == "Texture" then
+					M.dielRing = region
+				end
+			end
+		end
+		return { M.dielRing }
+	end
+	return {}
+end
+
+local function HideArt(key, frame)
+	for _, texture in pairs(OwnArt(key, frame)) do
+		if texture then texture:SetAlpha(0) end
 	end
 end
 
--- Elements that are free but have no spot from the layout editor: next to the header, the way
--- Blizzard's own layout has them, and day/night in the map corner.
+local function ShowArt(key, frame)
+	for _, texture in pairs(OwnArt(key, frame)) do
+		if texture then texture:SetAlpha(1) end
+	end
+end
+
+-- Our bare icon on a Blizzard button, with a hover glow like Blizzard's own.
+function M:GetFieldIcon(key, frame)
+	self.fieldIcons = self.fieldIcons or {}
+	local icon = self.fieldIcons[key]
+	if icon then return icon end
+	local host = key == "tracking" and frame.Button or frame
+	icon = host:CreateTexture(nil, "ARTWORK", nil, 2)
+	icon:SetPoint("CENTER")
+	local glow = host:CreateTexture(nil, "HIGHLIGHT")
+	glow:SetAllPoints(icon)
+	glow:SetBlendMode("ADD")
+	glow:SetAlpha(0.35)
+	icon.glow = glow
+	local day = host:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	day:SetPoint("CENTER", icon, "CENTER", 0, -1)
+	icon.day = day
+	self.fieldIcons[key] = icon
+	return icon
+end
+
+function M:UpdateFieldIcon(key, frame, size)
+	local spec = ICONS[key] and ICONS[key]()
+	local icon = (spec or (self.fieldIcons and self.fieldIcons[key])) and self:GetFieldIcon(key, frame)
+	if not icon then return end
+	if not spec then
+		icon:Hide()
+		icon.glow:Hide()
+		icon.day:Hide()
+		return
+	end
+	local isAtlas = SetIcon(icon, spec)
+	SetIcon(icon.glow, spec)
+	icon:SetSize(size, size)
+	icon:Show()
+	icon.glow:Show()
+	-- The plain calendar texture has no day number; Blizzard's calendar atlases do.
+	icon.day:SetShown(spec.day ~= nil and not isAtlas)
+	icon.day:SetText(spec.day or "")
+end
+
+local function ClearFieldIcon(self, key)
+	local icon = self.fieldIcons and self.fieldIcons[key]
+	if icon then
+		icon:Hide()
+		icon.glow:Hide()
+		icon.day:Hide()
+	end
+end
+
+-- Blizzard puts the button art back on every hover and click.
+function M:HookFieldArt()
+	if self.fieldArtHooked then return end
+	self.fieldArtHooked = true
+	local function hook(key, frame)
+		if frame and frame.OnButtonStateChanged then
+			hooksecurefunc(frame, "OnButtonStateChanged", function()
+				if M:IsDocked(key) then HideArt(key, DockFrame(key)) end
+			end)
+		end
+	end
+	local cluster = MinimapCluster
+	hook("tracking", cluster and cluster.Tracking and cluster.Tracking.Button)
+	hook("calendar", _G.GameTimeFrame)
+	hook("compartment", _G.AddonCompartmentFrame)
+end
+
+-- Scales day/night and the collector button to the field; Blizzard's buttons have the header size already.
+local SCALED = { diel = true, collector = true }
+
+function M:PlaceField(zone, side, size)
+	self.fieldAnchors = self.fieldAnchors or {}
+	local anchor = self.fieldAnchors[side]
+	if not anchor then
+		anchor = CreateFrame("Frame", nil, zone)
+		self.fieldAnchors[side] = anchor
+		local divider = zone:CreateTexture(nil, "ARTWORK")
+		divider:SetColorTexture(1, 0.82, 0, 0.3)
+		anchor.divider = divider
+	end
+	anchor:ClearAllPoints()
+	anchor:SetSize(size, size)
+	if side == "LEFT" then
+		anchor:SetPoint("LEFT", zone, "LEFT", 0, 0)
+	else
+		anchor:SetPoint("RIGHT", zone, "RIGHT", 0, 0)
+	end
+	local key = self:GetField(side)
+	local frame = key and DockFrame(key)
+	local used = frame and IsActive(key, frame) and not (InCombatLockdown() and frame:IsProtected())
+	anchor.divider:ClearAllPoints()
+	anchor.divider:SetSize(1, size - 8)
+	anchor.divider:SetPoint("CENTER", anchor, side == "LEFT" and "RIGHT" or "LEFT", 0, 0)
+	anchor.divider:SetShown(used and true or false)
+	if not used then return 0 end
+
+	local h = frame:GetHeight()
+	if key == "tracking" and frame.Button then h = frame.Button:GetHeight() end
+	if SCALED[key] and h and h > 0 then
+		local parent = frame:GetParent()
+		local parentScale = parent and parent:GetEffectiveScale() or 1
+		frame:SetScale(size * zone:GetEffectiveScale() / (h * parentScale))
+	end
+	frame:ClearAllPoints()
+	frame:SetPoint("CENTER", anchor, "CENTER", 0, 0)
+	frame:SetFrameLevel(zone:GetFrameLevel() + 2)
+	HideArt(key, frame)
+	local iconSize = (size - ICON_INSET * 2) * zone:GetEffectiveScale() / frame:GetEffectiveScale()
+	self:UpdateFieldIcon(key, frame, iconSize)
+	return size
+end
+
+-- Functions that left a field get their own look back; without a spot from the layout editor they
+-- sit next to the header, the way Blizzard's layout has them.
 function M:PlaceFree(zone)
 	local layout = ns.layout and ns.db.layout and ns.layout
+	self.wasDocked = self.wasDocked or {}
+	for _, key in ipairs(self.DOCKABLE) do
+		local frame = DockFrame(key)
+		local docked = self:IsDocked(key)
+		if frame and not docked and self.wasDocked[key] then
+			ShowArt(key, frame)
+			ClearFieldIcon(self, key)
+			if key == "collector" then frame:SetScale(1) frame:SetAlpha(1) end
+		end
+		self.wasDocked[key] = docked
+	end
 	local function Free(key)
 		local frame = DockFrame(key)
 		if not frame or self:IsDocked(key) or (layout and layout:IsMoved(key)) then return nil end
 		if InCombatLockdown() and frame:IsProtected() then return nil end
 		return frame
 	end
-	-- The collector button out of the header: back to its own size.
-	local collector = DockFrame("collector")
-	if collector and self.collectorDocked and not self:IsDocked("collector") then
-		collector:SetScale(1)
-		collector:SetAlpha(1)
-	end
-	self.collectorDocked = self:IsDocked("collector")
 	local tracking = Free("tracking")
 	if tracking then
 		tracking:ClearAllPoints()
@@ -401,53 +524,229 @@ function M:PlaceFree(zone)
 	local compartment = Free("compartment")
 	if compartment then
 		compartment:ClearAllPoints()
-		local cal = _G.GameTimeFrame
-		if cal and not self:IsDocked("calendar") then
-			compartment:SetPoint("LEFT", cal, "RIGHT", 0, 0)
+		if calendar and calendar:IsShown() then
+			compartment:SetPoint("LEFT", calendar, "RIGHT", 0, 0)
 		else
 			compartment:SetPoint("LEFT", zone, "RIGHT", 2, 0)
 		end
 	end
 end
 
--- Width of the header bar and the places of everything in it. Returns the bar width in header units.
+---------------------------------------------------------------------------
+-- Text fields: zone name, clock and other values
+---------------------------------------------------------------------------
+
+local function Clock(wantAMPM)
+	if GetCVarBool and GetCVarBool("timeMgrUseMilitaryTime") then return false end
+	return wantAMPM
+end
+
+local function Colored(value, good, bad, text)
+	local r, g = 1, 1
+	if value <= good then r, g = 0.3, 1 elseif value >= bad then r, g = 1, 0.3 else r, g = 1, 0.82 end
+	return ("|cff%02x%02x%02x%s|r"):format(math.floor(r * 255), math.floor(g * 255), 76, text)
+end
+
+M.INFO = {
+	{ key = "ZONE", label = L.INFO_ZONE },
+	{ key = "CLOCK", label = L.INFO_CLOCK },
+	{ key = "LOCALTIME", label = L.INFO_LOCALTIME, get = function()
+		if GameTime_GetLocalTime then return GameTime_GetLocalTime(Clock(true)) end
+		return date("%H:%M")
+	end },
+	{ key = "SERVERTIME", label = L.INFO_SERVERTIME, get = function()
+		if GameTime_GetGameTime then return GameTime_GetGameTime(Clock(true)) end
+		local h, m = GetGameTime()
+		return ("%02d:%02d"):format(h, m)
+	end },
+	{ key = "MONEY", label = L.INFO_MONEY, get = function()
+		local money = GetMoney()
+		-- Gold only once there is some; copper and silver are noise in a header.
+		if money >= 10000 then money = money - money % 10000 end
+		if GetMoneyString then return GetMoneyString(money, true) end
+		return tostring(math.floor(money / 10000)) .. "g"
+	end },
+	{ key = "PING", label = L.INFO_PING, get = function()
+		local _, _, home, world = GetNetStats()
+		local ms = math.max(home or 0, world or 0)
+		return Colored(ms, 100, 250, L.INFO_MS:format(ms))
+	end },
+	{ key = "FPS", label = L.INFO_FPS, get = function()
+		local fps = math.floor(GetFramerate() + 0.5)
+		return Colored(-fps, -60, -25, L.INFO_FPS_VALUE:format(fps))
+	end },
+	{ key = "COORDS", label = L.INFO_COORDS, get = function()
+		local map = C_Map.GetBestMapForUnit("player")
+		local pos = map and C_Map.GetPlayerMapPosition(map, "player")
+		if not pos then return "--" end
+		local x, y = pos:GetXY()
+		return ("%.1f, %.1f"):format(x * 100, y * 100)
+	end },
+	{ key = "DURABILITY", label = L.INFO_DURABILITY, get = function()
+		local lowest
+		for slot = 1, 18 do
+			local cur, max = GetInventoryItemDurability(slot)
+			if cur and max and max > 0 then lowest = math.min(lowest or 1, cur / max) end
+		end
+		if not lowest then return "--" end
+		local pct = math.floor(lowest * 100 + 0.5)
+		return Colored(-pct, -50, -20, L.INFO_DURABILITY_VALUE:format(pct))
+	end },
+	{ key = "BAGS", label = L.INFO_BAGS, get = function()
+		local free = 0
+		local bags = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4
+		for bag = 0, bags do
+			local n = C_Container and C_Container.GetContainerNumFreeSlots(bag)
+			free = free + (n or 0)
+		end
+		return Colored(-free, -10, -3, L.INFO_BAGS_VALUE:format(free))
+	end },
+	{ key = "NONE", label = L.INFO_NONE },
+}
+local INFO = {}
+for _, info in ipairs(M.INFO) do INFO[info.key] = info end
+
+local POSITIONS = { "LEFT", "CENTER", "RIGHT" }
+local FIELD_OF = { LEFT = "infoLeft", CENTER = "infoCenter", RIGHT = "infoRight" }
+
+function M:GetInfo(pos)
+	local key = ns.db.header[FIELD_OF[pos]]
+	return INFO[key] and key or "NONE"
+end
+
+-- Text area between the square fields, filled once the bar width is known.
+function M:LayoutInfo()
+	local zone = MinimapCluster and MinimapCluster.ZoneTextButton
+	local area = self.infoArea
+	if not (zone and area) then return end
+	self.infoText = self.infoText or {}
+	local layout = ns.layout and ns.db.layout and ns.layout
+	local zoneText, clock = _G.MinimapZoneText, _G.TimeManagerClockButton
+	local clockFree = clock and not (layout and layout:IsMoved("clock"))
+	local used = { ZONE = false, CLOCK = false }
+	local widths, regions = {}, {}
+	local count = 0
+	for _, pos in ipairs(POSITIONS) do
+		local key = self:GetInfo(pos)
+		local region, width
+		if key == "ZONE" and zoneText and not used.ZONE then
+			region, used.ZONE = zoneText, true
+		elseif key == "CLOCK" and clockFree and not used.CLOCK then
+			region, used.CLOCK = clock, true
+			width = clock:IsShown() and clock:GetWidth() * clock:GetEffectiveScale() / zone:GetEffectiveScale() or 0
+		elseif INFO[key] and INFO[key].get then
+			local text = self.infoText[pos]
+			if not text then
+				text = zone:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+				text:SetWordWrap(false)
+				self.infoText[pos] = text
+			end
+			local ok, value = pcall(INFO[key].get)
+			text:SetText(ok and value or "")
+			text:Show()
+			region, width = text, text:GetStringWidth() + 2
+		end
+		if self.infoText[pos] and region ~= self.infoText[pos] then self.infoText[pos]:Hide() end
+		regions[pos], widths[pos] = region, width
+		if region then count = count + 1 end
+	end
+
+	-- The zone name takes what the others leave; the others keep their own width.
+	local total = area.width
+	local fixed = 0
+	for _, pos in ipairs(POSITIONS) do
+		if regions[pos] and regions[pos] ~= zoneText then fixed = fixed + (widths[pos] or 0) end
+	end
+	local zoneWidth = math.max(30, total - fixed - TEXT_GAP * math.max(0, count - 1))
+	if regions.CENTER and regions.CENTER ~= zoneText then
+		-- A centred value: the side fields get half the room each.
+		zoneWidth = math.min(zoneWidth, math.max(30, total / 2 - (widths.CENTER or 0) / 2 - TEXT_GAP))
+	end
+
+	local justify = { LEFT = "LEFT", CENTER = "CENTER", RIGHT = "RIGHT" }
+	for _, pos in ipairs(POSITIONS) do
+		local region = regions[pos]
+		if region then
+			local ratio = zone:GetEffectiveScale() / region:GetEffectiveScale()
+			region:ClearAllPoints()
+			if pos == "LEFT" then
+				region:SetPoint("LEFT", zone, "LEFT", (area.left) * ratio, -1 * ratio)
+			elseif pos == "RIGHT" then
+				region:SetPoint("RIGHT", zone, "RIGHT", -(area.right) * ratio, -1 * ratio)
+			else
+				region:SetPoint("CENTER", zone, "LEFT", (area.left + total / 2) * ratio, -1 * ratio)
+			end
+			if region.SetJustifyH then region:SetJustifyH(justify[pos]) end
+			if region == zoneText then
+				zoneText:SetWidth(zoneWidth)
+			elseif region ~= clock then
+				region:SetWidth(widths[pos])
+			end
+		end
+	end
+	-- Zone name and clock not picked: kept out of sight (Blizzard keeps updating them).
+	if zoneText then zoneText:SetAlpha(used.ZONE and 1 or 0) end
+	if clockFree then
+		clock:SetAlpha(used.CLOCK and 1 or 0)
+		clock:EnableMouse(used.CLOCK)
+	end
+	self.clockUsed = used.CLOCK or not clockFree
+end
+
+-- Values change all the time: refreshed every second while any is shown.
+function M:UpdateInfoTicker()
+	local needed = false
+	for _, pos in ipairs(POSITIONS) do
+		if INFO[self:GetInfo(pos)].get then needed = true end
+	end
+	if not self.infoTicker then
+		local f = CreateFrame("Frame")
+		local elapsed = 0
+		f:SetScript("OnUpdate", function(_, dt)
+			elapsed = elapsed + dt
+			if elapsed < 1 then return end
+			elapsed = 0
+			M:LayoutInfo()
+		end)
+		f:SetScript("OnEvent", function() M:LayoutInfo() end)
+		self.infoTicker = f
+	end
+	self.infoTicker:SetShown(needed)
+	if needed then
+		self.infoTicker:RegisterEvent("PLAYER_MONEY")
+		self.infoTicker:RegisterEvent("BAG_UPDATE_DELAYED")
+		self.infoTicker:RegisterEvent("UPDATE_INVENTORY_DURABILITY")
+	else
+		self.infoTicker:UnregisterAllEvents()
+	end
+end
+
+-- Bar width, the two fields and the text fields. Returns the bar width in header units.
 function M:ApplyHeaderSlots(zone, extent, scale)
 	local db = ns.db.map
 	local zoneScale = zone:GetScale() or 1
-	local height = zone:GetHeight()
-	self.docked = {}
-	local leftWidth, leftItems = self:LayoutSlot(zone, "LEFT", height)
-	local rightWidth, rightItems = self:LayoutSlot(zone, "RIGHT", height)
+	local size = zone:GetHeight()
+	self:HookFieldArt()
 	local width
 	if db.headerFull then
-		width = math.max(80 + leftWidth + rightWidth, (db.size + extent * 2) * scale / zoneScale)
+		width = math.max(HEADER_WIDTH, (db.size + extent * 2) * scale / zoneScale)
 	else
-		width = HEADER_WIDTH + leftWidth + rightWidth
+		local left = self:GetField("LEFT") and size or 0
+		local right = self:GetField("RIGHT") and size or 0
+		width = HEADER_WIDTH + left + right
 	end
 	zone:SetWidth(width)
-	PlaceItems(self, zone, leftItems, SLOT_PAD)
-	PlaceItems(self, zone, rightItems, width - rightWidth)
+	local left = self:PlaceField(zone, "LEFT", size)
+	local right = self:PlaceField(zone, "RIGHT", size)
 	self:PlaceFree(zone)
 
 	SetHeaderTexture(zone.StateTexture)
 	SetHeaderTexture(zone.AddTexture)
 	if zone.StateTexture then zone.StateTexture:SetShown(ns.db.header.background) end
 
-	local layout = ns.layout and ns.db.layout and ns.layout
-	local clock = _G.TimeManagerClockButton
-	local clockWidth = 0
-	if clock and not (layout and layout:IsMoved("clock")) then
-		clock:ClearAllPoints()
-		local ratio = zone:GetEffectiveScale() / clock:GetEffectiveScale()
-		clock:SetPoint("RIGHT", zone, "RIGHT", (-3 - rightWidth) * ratio, -1 * ratio)
-		if clock:IsShown() then clockWidth = clock:GetWidth() / ratio end
-	end
-	local text = _G.MinimapZoneText
-	if text then
-		text:ClearAllPoints()
-		text:SetPoint("LEFT", zone, "LEFT", 8 + leftWidth, -1)
-		text:SetWidth(math.max(40, width - leftWidth - rightWidth - 12 - clockWidth))
-	end
+	self.infoArea = { left = left + TEXT_PAD, right = right + TEXT_PAD, width = math.max(40, width - left - right - TEXT_PAD * 2) }
+	self:LayoutInfo()
+	self:UpdateInfoTicker()
 	return width
 end
 
@@ -498,7 +797,6 @@ function M:ApplyHeader()
 			indicator:SetPoint("RIGHT", left, "LEFT", -2, 0)
 		end
 	end
-	self:ApplyButtonBackgrounds()
 end
 
 -- Blizzard's addon compartment lists addons that registered for it; the collector button shows the
@@ -520,36 +818,8 @@ function M:ApplyCompartment(compartment)
 	self.compartmentHidden = ns.db.map.hideCompartment
 end
 
--- The backing art of the buttons (tracking plate, compartment plate, day/night ring, collector ring).
-function M:GetButtonBackgrounds(key)
-	local frame = DockFrame(key)
-	if not frame then return {} end
-	if key == "tracking" then return { frame.Background } end
-	if key == "compartment" then return { frame.StateTexture } end
-	if key == "collector" then return { frame.border, frame.background } end
-	if key == "diel" then
-		if not self.dielRing then
-			for _, region in ipairs({ frame:GetRegions() }) do
-				if region ~= frame.Background and region.GetObjectType and region:GetObjectType() == "Texture" then
-					self.dielRing = region
-				end
-			end
-		end
-		return { self.dielRing }
-	end
-	return {}
-end
-
-function M:ApplyButtonBackgrounds()
-	for key, shown in pairs(ns.db.header.buttonBg) do
-		for _, texture in pairs(self:GetButtonBackgrounds(key)) do
-			if texture then texture:SetShown(shown) end
-		end
-	end
-end
-
 -- Blizzard shows and hides some header buttons itself (tracking at login, the compartment when an
--- addon registers); the bar is laid out again once that has happened.
+-- addon registers, the clock); the bar is laid out again once that has happened.
 function M:WatchHeaderButtons()
 	local pending
 	local function relayout()
@@ -567,6 +837,7 @@ function M:WatchHeaderButtons()
 			frame:HookScript("OnHide", relayout)
 		end
 	end
+	self.relayout = relayout
 end
 
 function M:ApplyDiel()
@@ -577,7 +848,7 @@ function M:ApplyDiel()
 		self.dielDocked = true
 		return
 	end
-	-- Back to Blizzard's counter-scale after leaving the header.
+	-- Back to Blizzard's counter-scale and ring after leaving the header.
 	if self.dielDocked then
 		self.dielDocked = nil
 		local container = MinimapCluster.MinimapContainer
@@ -752,6 +1023,7 @@ M.ATLAS_CHECK = {
 	"ui-hud-minimap-zoom-in", "ui-hud-minimap-zoom-out",
 	"ui-hud-minimap-addon-indicator", "ui-hud-minimap-tracking-button",
 	"UI-HUD-Minimap-Frame-Cycle", "UI-HUD-Minimap-DayCycle",
+	"ui-hud-minimap-tracking-up", "common-search-magnifyingglass", "ui-hud-calendar-1-up",
 }
 
 function M:PrintAtlasReport()

@@ -53,12 +53,14 @@ ns.DEFAULTS = {
 		order = {},
 		manual = {},
 	},
-	-- Header slots: buttons docked left or right inside the header bar, the rest placed freely.
+	-- Header: a function in the square field at each end, and three text fields in between.
 	header = {
 		background = true,
-		dock = { tracking = "LEFT", calendar = "RIGHT", compartment = "RIGHT", diel = "RIGHT", collector = "FREE" },
-		order = { tracking = 1, calendar = 1, compartment = 2, diel = 3, collector = 4 },
-		buttonBg = { tracking = true, compartment = true, diel = true, collector = true },
+		left = "tracking",
+		right = "calendar",
+		infoLeft = "ZONE",
+		infoCenter = "NONE",
+		infoRight = "CLOCK",
 	},
 	layout = {
 		snap = true,
@@ -209,13 +211,15 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		for _, field in ipairs({ "rightClick", "middleClick" }) do
 			if ns.db.map[field] == "WORLDMAP" then ns.db.map[field] = "NONE" end
 		end
-		-- 1.7.0: tracking, calendar, compartment and day/night sit in header slots. Elements already
-		-- moved with the layout editor stay where they were.
-		if not ns.db.header.migrated then
-			for key in pairs(ns.db.header.dock) do
-				if ns.db.layout.positions[key] then ns.db.header.dock[key] = "FREE" end
+		-- 1.8.0: the header has fixed fields for tracking and calendar. They go back into the header once,
+		-- also when 1.7.0 left them where the layout editor had put them.
+		if not ns.db.header.fields then
+			local header, layout = ns.db.header, ns.db.layout
+			header.dock, header.order, header.buttonBg, header.migrated = nil, nil, nil, nil
+			for _, key in ipairs({ "tracking", "calendar" }) do
+				layout.positions[key], layout.scales[key], layout.layers[key] = nil, nil, nil
 			end
-			ns.db.header.migrated = true
+			header.fields = true
 		end
 		if not ns.db.worldmap.cavesOptIn then
 			ns.db.worldmap.caves = false

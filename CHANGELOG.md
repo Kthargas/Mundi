@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0 - 2026-11-25
+
+- Header fields instead of slots: the header has one square field at each end, and each field holds exactly one function: tracking, calendar, day/night, addon compartment or the SquareMap addon button (or nothing). Default: tracking left, calendar right.
+- In a field the function is part of the header: its own plate, frame or ring is hidden and only a bare Blizzard icon is shown (magnifying glass, calendar with the day, sun or moon, the addon count, the addon button icon), with a thin divider to the text. It cannot be moved; select the header to change the fields.
+- Functions in no field are normal elements again with their own look and can be moved freely in the layout editor. Their panel has a "Place" dropdown to put them into a field.
+- Text fields: left, centre and right of the header can each show zone name, Blizzard clock, local time, server time, gold, latency, frame rate, coordinates, durability or free bag slots (or nothing). Default: zone name left, clock right.
+- Removed from 1.7.0: docking by dragging onto the header, several buttons per slot, and the per-button background options.
+- Tracking and calendar go back into the header once after the update.
+
 ## 1.7.0 - 2026-11-25
 
 - Header slots: the header bar has a left and a right slot. Tracking (magnifying glass), calendar, day/night, addon compartment and the SquareMap addon button can sit in either one and then form one bar with the zone name and clock. Default: tracking left; calendar, compartment and day/night right.
