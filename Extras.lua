@@ -242,23 +242,13 @@ end
 
 E.ACTIONS = {
 	{ key = "PING", label = L.ACTION_PING },
-	{ key = "TRACKING", label = L.ACTION_TRACKING },
 	{ key = "COLLECTOR", label = L.ACTION_COLLECTOR },
 	{ key = "NONE", label = L.ACTION_NONE },
 }
 
 function E:RunAction(action)
-	if action == "TRACKING" then
-		local tracking = MinimapCluster.Tracking and MinimapCluster.Tracking.Button
-		if tracking and tracking.OpenMenu then
-			if tracking.IsMenuOpen and tracking:IsMenuOpen() then
-				tracking:CloseMenu()
-			else
-				tracking:OpenMenu()
-			end
-			return true
-		end
-	elseif action == "COLLECTOR" then
+	-- No tracking menu here: opened from addon code, its entries (which cast tracking spells) are tainted.
+	if action == "COLLECTOR" then
 		if ns.collector then
 			ns.collector:Toggle()
 			return true
