@@ -38,7 +38,7 @@ own settings window (the action buttons on a separate "Actions" page under Squar
   buttons on the minimap). Map pins of Questie, HandyNotes, GatherMate and similar are left alone.
 - Left click opens a window with the buttons, right click opens the options, shift + right click opens the
   button picker, drag moves the button along the edge of the map.
-- Window: Blizzard panel with title or compact tooltip style, grid or list (icon and name), columns, button
+- Window: Blizzard panel with title or compact tooltip style, one button per row with its name, button
   size, spacing, next to the button or free to drag, close after a click, close when the mouse leaves,
   closes with Escape.
 - Drag the buttons inside the window to rearrange them; the order is saved. Buttons that stay on the

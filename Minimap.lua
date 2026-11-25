@@ -303,6 +303,7 @@ function M:IsDocked(key)
 end
 
 local function IsActive(key, frame)
+	if ns.layout and ns.db.layout and ns.layout:IsHidden(key) then return false end
 	if key == "diel" then return ns.db.map.showDiel end
 	if key == "collector" then return ns.db.collector.enabled end
 	if key == "compartment" and ns.db.map.hideCompartment then return false end
@@ -724,11 +725,12 @@ function M:LayoutInfo()
 	end
 	-- Zone name and clock not picked: kept out of sight (Blizzard keeps updating them).
 	if zoneText then zoneText:SetAlpha(used.ZONE and 1 or 0) end
+	local clockHidden = layout and layout:IsHidden("clock")
 	if clockFree then
-		clock:SetAlpha(used.CLOCK and 1 or 0)
-		clock:EnableMouse(used.CLOCK)
+		clock:SetAlpha((used.CLOCK and not clockHidden) and 1 or 0)
+		clock:EnableMouse(used.CLOCK and not clockHidden)
 	end
-	self.clockUsed = used.CLOCK or not clockFree
+	self.clockUsed = (used.CLOCK or not clockFree) and not clockHidden
 end
 
 -- Values change all the time: refreshed every second while any is shown.
@@ -769,8 +771,13 @@ function M:ApplyHeaderSlots(zone, extent, scale)
 	if db.headerFull then
 		width = math.max(HEADER_WIDTH, (db.size + extent * 2) * scale / zoneScale)
 	else
-		local left = self:GetField("LEFT") and size or 0
-		local right = self:GetField("RIGHT") and size or 0
+		local function Used(side)
+			local key = self:GetField(side)
+			local frame = key and DockFrame(key)
+			return frame and IsActive(key, frame)
+		end
+		local left = Used("LEFT") and size or 0
+		local right = Used("RIGHT") and size or 0
 		width = HEADER_WIDTH + left + right
 	end
 	zone:SetWidth(width)
