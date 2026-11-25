@@ -22,7 +22,6 @@ ns.DEFAULTS = {
 		headerFull = true,
 		showDiel = true,
 		showInstance = true,
-		showPing = true,
 		compass = true,
 		headerFade = false,
 		combatAlpha = 1,

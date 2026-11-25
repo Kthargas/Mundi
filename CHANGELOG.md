@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.5 - 2026-11-25
+
+- Fixed: "SquareMap has been blocked from an action only available to the Blizzard UI" at login. SquareMap listened for minimap pings (to show who pinged), and registering that ping callback is reserved for Blizzard code in this client. The "show who pings" feature is removed.
+
 ## 1.0.4 - 2026-11-25
 
 - Removed the "tracking menu" click action: opened from addon code, the menu's entries (which cast tracking spells) are tainted and get blocked. Use the tracking button in the header instead. Saved settings fall back to the ping.

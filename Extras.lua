@@ -13,53 +13,6 @@ local function OverlayLevel()
 end
 
 ---------------------------------------------------------------------------
--- Who pinged
----------------------------------------------------------------------------
-
-function E:CreatePing()
-	local f = CreateFrame("Frame", nil, Minimap)
-	f:SetSize(1, 1)
-	f:SetPoint("TOP", Minimap, "TOP", 0, -24)
-	f:Hide()
-	local text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	text:SetPoint("TOP")
-	f.text = text
-
-	local anim = f:CreateAnimationGroup()
-	local fade = anim:CreateAnimation("Alpha")
-	fade:SetFromAlpha(1)
-	fade:SetToAlpha(0)
-	fade:SetStartDelay(3)
-	fade:SetDuration(0.6)
-	anim:SetScript("OnFinished", function() f:Hide() end)
-	f.anim = anim
-	self.ping = f
-end
-
-function E:OnPing(unit)
-	if not ns.db.map.showPing or not unit then return end
-	local name = UnitName(unit)
-	if not name then return end
-	local isMe = UnitIsUnit(unit, "player")
-	if not ns.IsSecret(isMe) and isMe then return end
-
-	local f = self.ping
-	f:SetFrameLevel(OverlayLevel())
-	f.text:SetText(name)
-	local _, class = UnitClass(unit)
-	local color = class and not ns.IsSecret(class) and C_ClassColor and C_ClassColor.GetClassColor(class)
-	if color then
-		f.text:SetTextColor(color:GetRGB())
-	else
-		f.text:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
-	end
-	f.anim:Stop()
-	f:SetAlpha(1)
-	f:Show()
-	f.anim:Play()
-end
-
----------------------------------------------------------------------------
 -- Instance info (Forever has no Blizzard difficulty banner on the minimap)
 ---------------------------------------------------------------------------
 
@@ -262,6 +215,7 @@ end
 function E:HookClicks()
 	-- Only hook, never replace Blizzard's handler: a replaced script would run the ping from addon code.
 	-- Blizzard pings on every mouse button; the chosen action runs in addition.
+	ns.Trace("extras:Minimap:HookScript(OnMouseUp)")
 	Minimap:HookScript("OnMouseUp", function(_, button)
 		local action
 		if button == "RightButton" then
@@ -278,7 +232,6 @@ end
 ---------------------------------------------------------------------------
 
 function E:Init()
-	self:CreatePing()
 	self:CreateInstanceInfo()
 	self:CreateCompass()
 	self:CreateFader()
@@ -303,27 +256,8 @@ function E:Init()
 		end
 	end)
 
-	-- MINIMAP_PING is a callback event in this client: RegisterEvent would throw.
-	local function OnPingEvent(...)
-		local unit
-		for i = 1, select("#", ...) do
-			local v = select(i, ...)
-			if type(v) == "string" and v ~= "MINIMAP_PING" then
-				unit = v
-				break
-			end
-		end
-		local ok, err = pcall(E.OnPing, E, unit)
-		if not ok and ns.debug then geterrorhandler()(err) end
-	end
-	if f.RegisterEventCallback then
-		pcall(f.RegisterEventCallback, f, "MINIMAP_PING", OnPingEvent)
-	else
-		pcall(f.RegisterEvent, f, "MINIMAP_PING")
-		f:HookScript("OnEvent", function(_, event, ...)
-			if event == "MINIMAP_PING" then OnPingEvent(...) end
-		end)
-	end
+	-- No MINIMAP_PING listener: in this client the ping callback is reserved for Blizzard code, and
+	-- registering it from an addon is a forbidden action (the "blocked from an action" popup).
 
 	if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
 		CVarCallbackRegistry:RegisterCallback("rotateMinimap", function() E:UpdateCompass() end, E)
@@ -342,5 +276,4 @@ function E:Apply()
 	self:UpdateFader()
 	self:UpdateCombatAlpha()
 	self:OnZoomChanged()
-	if not ns.db.map.showPing and self.ping then self.ping:Hide() end
 end

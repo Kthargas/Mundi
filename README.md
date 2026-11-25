@@ -41,7 +41,6 @@ own settings window.
 - `/sqm add <FrameName>` collects a button the automatic search did not catch.
 
 ### Extras
-- Shows who pinged the minimap, in class colour.
 - Instance info (group size and difficulty) in dungeons and raids, since Forever has no difficulty banner.
 - North marker on the edge while the minimap rotates.
 - Auto zoom out after a few seconds.
