@@ -251,7 +251,207 @@ function M:ApplyCoords()
 	coords:SetFrameLevel((self.border and self.border:GetFrameLevel() or Minimap:GetFrameLevel()) + 4)
 end
 
--- Header (zone name, clock, calendar, tracking): directly above or below the square map.
+---------------------------------------------------------------------------
+-- Header: zone name and clock in one bar with a slot on the left and on the right. Tracking,
+-- calendar, addon compartment, day/night and the collector button can sit in a slot (one bar with
+-- the header) or be placed freely with the layout editor.
+---------------------------------------------------------------------------
+
+local HEADER_WIDTH = 152       -- Blizzard's header button
+local HEADER_SLICE = 12        -- end caps of the header art that must not stretch
+local SLOT_PAD = 3             -- space between the bar ends and the first button
+
+M.DOCKABLE = { "tracking", "calendar", "compartment", "diel", "collector" }
+
+local function DockFrame(key)
+	local cluster = MinimapCluster
+	if key == "tracking" then return cluster and cluster.Tracking end
+	if key == "calendar" then return _G.GameTimeFrame end
+	if key == "compartment" then return _G.AddonCompartmentFrame end
+	if key == "diel" then return cluster and cluster.DielFrame end
+	if key == "collector" then return ns.collector and ns.collector.button end
+end
+M.DockFrame = DockFrame
+
+function M:GetDock(key)
+	local header = ns.db.header
+	return header and header.dock[key] or "FREE"
+end
+
+function M:IsDocked(key)
+	local dock = self:GetDock(key)
+	return dock == "LEFT" or dock == "RIGHT"
+end
+
+-- Elements that take room in the header right now.
+local function IsActive(key, frame)
+	if key == "diel" then return ns.db.map.showDiel end
+	if key == "collector" then return ns.db.collector.enabled end
+	if key == "compartment" and ns.db.map.hideCompartment then return false end
+	return frame:IsShown()
+end
+
+-- Day/night and the collector button are bigger than the header: in a slot they are scaled to its height.
+local SCALED = { diel = true, collector = true }
+
+-- Keys docked on one side, in their order from left to right.
+function M:GetSlot(side)
+	local header = ns.db.header
+	local keys = {}
+	for _, key in ipairs(self.DOCKABLE) do
+		if header.dock[key] == side then keys[#keys + 1] = key end
+	end
+	table.sort(keys, function(a, b) return (header.order[a] or 0) < (header.order[b] or 0) end)
+	return keys
+end
+
+local function SetHeaderTexture(texture)
+	if not texture then return end
+	texture:ClearAllPoints()
+	texture:SetAllPoints()
+	if texture.SetTextureSliceMargins then
+		texture:SetTextureSliceMargins(HEADER_SLICE, 0, HEADER_SLICE, 0)
+		if texture.SetTextureSliceMode and Enum.UITextureSliceMode then
+			texture:SetTextureSliceMode(Enum.UITextureSliceMode.Stretched)
+		end
+	end
+end
+
+-- Invisible anchors inside the header bar, one per docked element. Anchoring the element's centre to
+-- one with no offset keeps it in place whatever its own scale is.
+function M:GetSlotAnchor(zone, key)
+	self.slotAnchors = self.slotAnchors or {}
+	local anchor = self.slotAnchors[key]
+	if not anchor then
+		anchor = CreateFrame("Frame", nil, zone)
+		anchor:SetSize(1, 1)
+		self.slotAnchors[key] = anchor
+	end
+	return anchor
+end
+
+-- Lays out one slot. Returns its width in header units.
+function M:LayoutSlot(zone, side, height)
+	local zoneScale = zone:GetEffectiveScale()
+	local items, width = {}, 0
+	for _, key in ipairs(self:GetSlot(side)) do
+		local frame = DockFrame(key)
+		if frame and IsActive(key, frame) and not (InCombatLockdown() and frame:IsProtected()) then
+			local w, h = frame:GetWidth(), frame:GetHeight()
+			if key == "tracking" and frame.Button then w, h = frame.Button:GetWidth(), frame.Button:GetHeight() end
+			local parent = frame:GetParent()
+			local parentScale = parent and parent:GetEffectiveScale() or 1
+			local own = 1
+			if SCALED[key] and h and h > 0 then
+				own = height * zoneScale / (h * parentScale)
+				frame:SetScale(own)
+			end
+			-- Size from the layout editor comes on top (applied after this by the layout module).
+			local user = ns.layout and ns.layout:GetScale(key) or 1
+			local itemWidth = (w or 0) * parentScale * own * user / zoneScale
+			items[#items + 1] = { key = key, frame = frame, width = itemWidth }
+			width = width + itemWidth
+		end
+	end
+	if #items == 0 then return 0, items end
+	return width + SLOT_PAD, items
+end
+
+local function PlaceItems(self, zone, items, startX)
+	local x = startX
+	for _, item in ipairs(items) do
+		local anchor = self:GetSlotAnchor(zone, item.key)
+		anchor:ClearAllPoints()
+		anchor:SetPoint("CENTER", zone, "LEFT", x + item.width / 2, 0)
+		item.frame:ClearAllPoints()
+		item.frame:SetPoint("CENTER", anchor, "CENTER", 0, 0)
+		item.frame:SetFrameLevel(zone:GetFrameLevel() + 2)
+		self.docked[item.key] = true
+		x = x + item.width
+	end
+end
+
+-- Elements that are free but have no spot from the layout editor: next to the header, the way
+-- Blizzard's own layout has them, and day/night in the map corner.
+function M:PlaceFree(zone)
+	local layout = ns.layout and ns.db.layout and ns.layout
+	local function Free(key)
+		local frame = DockFrame(key)
+		if not frame or self:IsDocked(key) or (layout and layout:IsMoved(key)) then return nil end
+		if InCombatLockdown() and frame:IsProtected() then return nil end
+		return frame
+	end
+	-- The collector button out of the header: back to its own size.
+	local collector = DockFrame("collector")
+	if collector and self.collectorDocked and not self:IsDocked("collector") then
+		collector:SetScale(1)
+		collector:SetAlpha(1)
+	end
+	self.collectorDocked = self:IsDocked("collector")
+	local tracking = Free("tracking")
+	if tracking then
+		tracking:ClearAllPoints()
+		tracking:SetPoint("RIGHT", zone, "LEFT", -2, 0)
+	end
+	local calendar = Free("calendar")
+	if calendar then
+		calendar:ClearAllPoints()
+		calendar:SetPoint("LEFT", zone, "RIGHT", 2, 0)
+	end
+	local compartment = Free("compartment")
+	if compartment then
+		compartment:ClearAllPoints()
+		local cal = _G.GameTimeFrame
+		if cal and not self:IsDocked("calendar") then
+			compartment:SetPoint("LEFT", cal, "RIGHT", 0, 0)
+		else
+			compartment:SetPoint("LEFT", zone, "RIGHT", 2, 0)
+		end
+	end
+end
+
+-- Width of the header bar and the places of everything in it. Returns the bar width in header units.
+function M:ApplyHeaderSlots(zone, extent, scale)
+	local db = ns.db.map
+	local zoneScale = zone:GetScale() or 1
+	local height = zone:GetHeight()
+	self.docked = {}
+	local leftWidth, leftItems = self:LayoutSlot(zone, "LEFT", height)
+	local rightWidth, rightItems = self:LayoutSlot(zone, "RIGHT", height)
+	local width
+	if db.headerFull then
+		width = math.max(80 + leftWidth + rightWidth, (db.size + extent * 2) * scale / zoneScale)
+	else
+		width = HEADER_WIDTH + leftWidth + rightWidth
+	end
+	zone:SetWidth(width)
+	PlaceItems(self, zone, leftItems, SLOT_PAD)
+	PlaceItems(self, zone, rightItems, width - rightWidth)
+	self:PlaceFree(zone)
+
+	SetHeaderTexture(zone.StateTexture)
+	SetHeaderTexture(zone.AddTexture)
+	if zone.StateTexture then zone.StateTexture:SetShown(ns.db.header.background) end
+
+	local layout = ns.layout and ns.db.layout and ns.layout
+	local clock = _G.TimeManagerClockButton
+	local clockWidth = 0
+	if clock and not (layout and layout:IsMoved("clock")) then
+		clock:ClearAllPoints()
+		local ratio = zone:GetEffectiveScale() / clock:GetEffectiveScale()
+		clock:SetPoint("RIGHT", zone, "RIGHT", (-3 - rightWidth) * ratio, -1 * ratio)
+		if clock:IsShown() then clockWidth = clock:GetWidth() / ratio end
+	end
+	local text = _G.MinimapZoneText
+	if text then
+		text:ClearAllPoints()
+		text:SetPoint("LEFT", zone, "LEFT", 8 + leftWidth, -1)
+		text:SetWidth(math.max(40, width - leftWidth - rightWidth - 12 - clockWidth))
+	end
+	return width
+end
+
+-- Header above or below the square map.
 function M:ApplyHeader()
 	local cluster = MinimapCluster
 	local container, zone = cluster.MinimapContainer, cluster.ZoneTextButton
@@ -266,16 +466,18 @@ function M:ApplyHeader()
 	-- Zone button offsets are in its own units, the map edge is in container units.
 	local edge = extent * scale / zone:GetScale() + gap / zone:GetScale()
 
-	local shift = self:ApplyHeaderWidth(zone, extent, scale)
+	local compartment = _G.AddonCompartmentFrame
+	if compartment then self:ApplyCompartment(compartment) end
+	self:ApplyHeaderSlots(zone, extent, scale)
 
 	container:ClearAllPoints()
 	zone:ClearAllPoints()
 	if db.headerPos == "BELOW" then
 		container:SetPoint("TOP", cluster, "TOP", 0, (margin - extent))
-		zone:SetPoint("TOP", Minimap, "BOTTOM", shift, -edge)
+		zone:SetPoint("TOP", Minimap, "BOTTOM", 0, -edge)
 	else
 		container:SetPoint("TOP", cluster, "TOP", 0, -(zoneHeight + gap) / scale + (margin - extent))
-		zone:SetPoint("BOTTOM", Minimap, "TOP", shift, edge)
+		zone:SetPoint("BOTTOM", Minimap, "TOP", 0, edge)
 	end
 
 	local indicator = cluster.IndicatorFrame
@@ -290,17 +492,13 @@ function M:ApplyHeader()
 			end
 		else
 			-- Left of the header instead of hanging over the map.
-			local left = (cluster.Tracking and cluster.Tracking:IsShown()) and cluster.Tracking or zone
+			local tracking = cluster.Tracking
+			local left = (tracking and tracking:IsShown() and not self:IsDocked("tracking")
+				and not (ns.layout and ns.layout:IsMoved("tracking"))) and tracking or zone
 			indicator:SetPoint("RIGHT", left, "LEFT", -2, 0)
 		end
 	end
-	-- Addon compartment: right of the calendar instead of below it.
-	local compartment, calendar = _G.AddonCompartmentFrame, _G.GameTimeFrame
-	if compartment and calendar then
-		compartment:ClearAllPoints()
-		compartment:SetPoint("LEFT", calendar, "RIGHT", 0, 0)
-		self:ApplyCompartment(compartment)
-	end
+	self:ApplyButtonBackgrounds()
 end
 
 -- Blizzard's addon compartment lists addons that registered for it; the collector button shows the
@@ -322,64 +520,71 @@ function M:ApplyCompartment(compartment)
 	self.compartmentHidden = ns.db.map.hideCompartment
 end
 
-local HEADER_WIDTH = 152       -- Blizzard's header button
-local HEADER_TEXT_WIDTH = 110
-local HEADER_SLICE = 12        -- end caps of the header art that must not stretch
-local CALENDAR_OVERLAP = 4     -- the calendar overlaps the header end in Blizzard's layout
-
-local function Visible(frame)
-	return frame and frame:IsShown() and frame:GetWidth() * frame:GetScale() or 0
-end
-
-local function SetHeaderTexture(texture, full)
-	if not texture then return end
-	texture:ClearAllPoints()
-	if full then
-		texture:SetAllPoints()
-		if texture.SetTextureSliceMargins then
-			texture:SetTextureSliceMargins(HEADER_SLICE, 0, HEADER_SLICE, 0)
-			if texture.SetTextureSliceMode and Enum.UITextureSliceMode then
-				texture:SetTextureSliceMode(Enum.UITextureSliceMode.Stretched)
+-- The backing art of the buttons (tracking plate, compartment plate, day/night ring, collector ring).
+function M:GetButtonBackgrounds(key)
+	local frame = DockFrame(key)
+	if not frame then return {} end
+	if key == "tracking" then return { frame.Background } end
+	if key == "compartment" then return { frame.StateTexture } end
+	if key == "collector" then return { frame.border, frame.background } end
+	if key == "diel" then
+		if not self.dielRing then
+			for _, region in ipairs({ frame:GetRegions() }) do
+				if region ~= frame.Background and region.GetObjectType and region:GetObjectType() == "Texture" then
+					self.dielRing = region
+				end
 			end
 		end
-	else
-		texture:SetPoint("CENTER")
+		return { self.dielRing }
+	end
+	return {}
+end
+
+function M:ApplyButtonBackgrounds()
+	for key, shown in pairs(ns.db.header.buttonBg) do
+		for _, texture in pairs(self:GetButtonBackgrounds(key)) do
+			if texture then texture:SetShown(shown) end
+		end
 	end
 end
 
--- Stretch the header (tracking, zone name, clock, calendar, addon compartment) over the full map width.
--- Returns the horizontal offset that centers the whole row over the map.
-function M:ApplyHeaderWidth(zone, extent, scale)
-	local db = ns.db.map
-	local cluster = MinimapCluster
-	local zoneScale = zone:GetScale() or 1
-	-- Elements moved with the layout editor no longer take room in the header.
-	local layout = ns.layout and ns.db.layout and ns.layout
-	local function Moved(key) return layout and layout:IsMoved(key) end
-	local left = Moved("tracking") and 0 or Visible(cluster.Tracking)
-	local right = (Moved("calendar") and 0 or math.max(0, Visible(_G.GameTimeFrame) - CALENDAR_OVERLAP))
-		+ ((Moved("compartment") or Moved("calendar")) and 0 or Visible(_G.AddonCompartmentFrame))
-	local width = HEADER_WIDTH
-	if db.headerFull then
-		local mapWidth = (db.size + extent * 2) * scale
-		width = math.max(80, (mapWidth - left - right) / zoneScale)
+-- Blizzard shows and hides some header buttons itself (tracking at login, the compartment when an
+-- addon registers); the bar is laid out again once that has happened.
+function M:WatchHeaderButtons()
+	local pending
+	local function relayout()
+		if pending then return end
+		pending = true
+		C_Timer.After(0, function()
+			pending = nil
+			M:Reapply()
+		end)
 	end
-	zone:SetWidth(width)
-	SetHeaderTexture(zone.StateTexture, db.headerFull)
-	SetHeaderTexture(zone.AddTexture, db.headerFull)
-	local text = _G.MinimapZoneText
-	if text then
-		local clock = _G.TimeManagerClockButton
-		local clockWidth = (clock and clock:IsShown() and not Moved("clock")) and clock:GetWidth() or 0
-		text:SetWidth(db.headerFull and math.max(40, width - 12 - clockWidth) or HEADER_TEXT_WIDTH)
+	for _, key in ipairs({ "tracking", "calendar", "compartment" }) do
+		local frame = DockFrame(key)
+		if frame then
+			frame:HookScript("OnShow", relayout)
+			frame:HookScript("OnHide", relayout)
+		end
 	end
-	return (left - right) / 2 / zoneScale
 end
 
 function M:ApplyDiel()
 	local diel = MinimapCluster and MinimapCluster.DielFrame
 	if not diel then return end
 	diel:SetShown(ns.db.map.showDiel)
+	if self:IsDocked("diel") then
+		self.dielDocked = true
+		return
+	end
+	-- Back to Blizzard's counter-scale after leaving the header.
+	if self.dielDocked then
+		self.dielDocked = nil
+		local container = MinimapCluster.MinimapContainer
+		local scale = container and container:GetScale() or 1
+		diel:SetScale(1 / ((scale and scale > 0) and scale or 1))
+		diel:SetAlpha(1)
+	end
 	diel:ClearAllPoints()
 	-- The day/night frame is counter-scaled by Blizzard, so offsets are in its own units.
 	local w, h = diel:GetSize()
@@ -414,7 +619,7 @@ function M:ApplyClusterSize()
 	local extent = self:GetBorderExtent()
 	local mapOuter = (db.size + extent * 2) * scale
 	local zoneScale = zone:GetScale() or 1
-	local width = math.max(mapOuter, (zone:GetWidth() + 50) * zoneScale)
+	local width = math.max(mapOuter, (zone:GetWidth() + 4) * zoneScale)
 	local height = zone:GetHeight() * zoneScale + (db.headerGap or 0) + mapOuter
 
 	-- Coordinates under the map (or under a header below the map) hang outside the frame.
@@ -437,10 +642,10 @@ function M:Apply()
 	self:ApplyMask()
 	self:ApplyBorder()
 	self:ApplySize()
+	self:ApplyDiel()
 	self:ApplyHeader()
 	self:ApplyZoomButtons()
 	self:ApplyCoords()
-	self:ApplyDiel()
 	self:ApplyBackdropButtons()
 	if ns.layout and ns.db.layout then ns.layout:ApplyPositions() end
 	self:ApplyClusterSize()
@@ -463,7 +668,8 @@ function M:HookBlizzard()
 	local zone = cluster.ZoneTextButton
 	if zone and zone.OnButtonStateChanged then
 		hooksecurefunc(zone, "OnButtonStateChanged", function(self)
-			SetHeaderTexture(self.StateTexture, ns.db.map.headerFull)
+			SetHeaderTexture(self.StateTexture)
+			SetHeaderTexture(self.AddTexture)
 		end)
 	end
 	for _, method in ipairs({ "UpdateMinimapConfig", "SetHeaderUnderneath", "SetEditModeScale", "ApplyExternalEventURLButtonAnchor" }) do
@@ -506,6 +712,9 @@ function M:HookBlizzard()
 		if event == "ADDON_LOADED" then
 			if name == "Blizzard_HybridMinimap" then
 				M:ApplyHybridMask()
+			elseif name == "Blizzard_TimeManager" then
+				-- The clock anchors itself to the header end when it loads; move it out of the right slot.
+				M:Reapply()
 			end
 		else
 			M:Reapply()
@@ -522,6 +731,7 @@ function M:Init()
 	if not (Minimap and MinimapCluster) then return end
 	self:CreateBorder()
 	self:HookBlizzard()
+	self:WatchHeaderButtons()
 	self.ready = true
 end
 

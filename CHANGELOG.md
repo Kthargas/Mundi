@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.0 - 2026-11-25
+
+- Header slots: the header bar has a left and a right slot. Tracking (magnifying glass), calendar, day/night, addon compartment and the SquareMap addon button can sit in either one and then form one bar with the zone name and clock. Default: tracking left; calendar, compartment and day/night right.
+- In the layout editor: drag a button off the header to place it freely; drop it on the left or right half of the header to dock it there again (at the spot where it is dropped). Each of these buttons also has a "Place" dropdown (left slot, right slot, free), and the header lists all five.
+- Day/night and the addon button are scaled to the header height in a slot.
+- New options: header background, and a background (plate or ring) per button for tracking, compartment, day/night and the addon button.
+- Elements already moved with the editor stay where they are; right click (reset) puts them back into their default slot.
+
 ## 1.6.1 - 2026-11-25
 
 - Fixed: the first time the layout editor was opened in a session, it showed the dialog but nothing could be edited and "Done" did nothing; only a second open worked. Creating the dialog hid it once, and that ran the "editor closed" handler on the editor that was just starting.
