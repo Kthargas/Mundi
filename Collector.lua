@@ -20,7 +20,7 @@ local PAD = 6         -- inner padding of the window content
 local LABEL_GAP = 6
 
 local entries = {}    -- frame -> entry
-local ordered = {}    -- list of entries, sorted by name
+local ordered = {}    -- list of entries, in the saved order (new buttons by name at the end)
 
 local function db() return ns.db.collector end
 
@@ -137,8 +137,32 @@ function C:Register(frame, label, source)
 	}
 	entries[frame] = entry
 	ordered[#ordered + 1] = entry
-	table.sort(ordered, function(a, b) return a.label:lower() < b.label:lower() end)
+	C:SortEntries()
 	return entry
+end
+
+-- Buttons the player arranged by dragging keep their saved place; all others follow by name.
+function C:SortEntries()
+	local rank = {}
+	for i, id in ipairs(db().order or {}) do rank[id] = i end
+	table.sort(ordered, function(a, b)
+		local ra, rb = rank[a.id], rank[b.id]
+		if ra and rb then return ra < rb end
+		if ra or rb then return ra ~= nil end
+		return a.label:lower() < b.label:lower()
+	end)
+end
+
+function C:SaveOrder()
+	local order = {}
+	for _, entry in ipairs(ordered) do order[#order + 1] = entry.id end
+	db().order = order
+end
+
+function C:ResetOrder()
+	db().order = {}
+	self:SortEntries()
+	self:Layout()
 end
 
 function C:GetLibDBIcon()
@@ -241,8 +265,10 @@ function C:Grab(entry)
 	-- The owning addon must not move the button out of the window again (LibDBIcon re-places
 	-- buttons on the minimap edge whenever it refreshes).
 	for _, method in ipairs(OVERRIDES) do b[method] = Nop end
-	b:SetScript("OnDragStart", nil)
-	b:SetScript("OnDragStop", nil)
+	-- Dragging a button inside the window changes its place in the window.
+	if b.RegisterForDrag then b:RegisterForDrag("LeftButton") end
+	b:SetScript("OnDragStart", function() C:BeginDrag(entry) end)
+	b:SetScript("OnDragStop", function() C:EndDrag(entry) end)
 	-- LibDBIcon pins its buttons to MEDIUM strata; inside the DIALOG window they would be hidden behind it.
 	if b.SetFixedFrameStrata then b:SetFixedFrameStrata(false) end
 	if b.SetFixedFrameLevel then b:SetFixedFrameLevel(false) end
@@ -262,7 +288,8 @@ function C:Grab(entry)
 		end
 		entry.hooked = true
 		local function onUsed(_, mouseButton)
-			if entry.collected and db().closeOnClick and mouseButton ~= "RightButton" then
+			if entry.collected and db().closeOnClick and mouseButton ~= "RightButton" and not C.dragEntry
+				and (not C.dragEndTime or GetTime() - C.dragEndTime > 0.1) then
 				C_Timer.After(0, function() C:Hide() end)
 			end
 		end
@@ -281,6 +308,7 @@ function C:Release(entry)
 	if not entry.collected then return end
 	local b = entry.frame
 	if b:IsProtected() and InCombatLockdown() then return end
+	if self.dragEntry == entry then self:EndDrag(entry) end
 	local orig = entry.orig
 	local meta = Meta(b)
 
@@ -359,6 +387,9 @@ local function CreateRow(entry)
 			if fn then fn(b, mouseButton) end
 		end
 	end)
+	row:RegisterForDrag("LeftButton")
+	row:SetScript("OnDragStart", function() C:BeginDrag(entry) end)
+	row:SetScript("OnDragStop", function() C:EndDrag(entry) end)
 	row:SetScript("OnEnter", function()
 		local fn = entry.frame:GetScript("OnEnter")
 		if fn then fn(entry.frame) end
@@ -446,7 +477,7 @@ function C:CreateWindows()
 	local function OnUpdate(frame, elapsed)
 		local delay = db().autoHide or 0
 		if delay <= 0 then return end
-		if frame:IsMouseOver() or (C.button and C.button:IsMouseOver()) then
+		if C.dragEntry or frame:IsMouseOver() or (C.button and C.button:IsMouseOver()) then
 			idle = 0
 			return
 		end
@@ -540,11 +571,13 @@ function C:Layout()
 
 		meta.SetParent(b, content)
 		b:SetFrameStrata(content:GetFrameStrata())
-		b:SetFrameLevel(content:GetFrameLevel() + 5)
+		b:SetFrameLevel(content:GetFrameLevel() + (entry == self.dragEntry and 20 or 5))
 		b:SetScale(scale)
-		meta.SetAlpha(b, 1)
-		meta.ClearAllPoints(b)
-		meta.SetPoint(b, "CENTER", content, "TOPLEFT", (x + cell / 2) / scale, -(y + cell / 2) / scale)
+		meta.SetAlpha(b, entry == self.dragEntry and 0.6 or 1)
+		if entry ~= self.dragEntry then
+			meta.ClearAllPoints(b)
+			meta.SetPoint(b, "CENTER", content, "TOPLEFT", (x + cell / 2) / scale, -(y + cell / 2) / scale)
+		end
 
 		if list then
 			local row = entry.row
@@ -561,6 +594,8 @@ function C:Layout()
 			entry.row:Hide()
 		end
 	end
+
+	self.metrics = { visible = visible, columns = columns, cellW = cellW, cell = cell, spacing = spacing, scale = scale }
 
 	local count = #visible
 	local rows = math.max(1, math.ceil(count / columns))
@@ -582,6 +617,67 @@ function C:Layout()
 	content:SetSize(w, h)
 
 	self:UpdateButton()
+end
+
+---------------------------------------------------------------------------
+-- Rearranging buttons by drag and drop
+---------------------------------------------------------------------------
+
+-- Index of the cell under the cursor, counted like the visible buttons.
+function C:CursorSlot()
+	local m, content = self.metrics, self.content
+	local left, top = content:GetLeft(), content:GetTop()
+	if not (m and left and top) or #m.visible == 0 then return nil end
+	local s = content:GetEffectiveScale()
+	local cx, cy = GetCursorPosition()
+	local x, y = cx / s - left, top - cy / s
+	local col = math.min(m.columns - 1, math.max(0, math.floor(x / (m.cellW + m.spacing))))
+	local row = math.max(0, math.floor(y / (m.cell + m.spacing)))
+	return math.min(#m.visible, row * m.columns + col + 1), x, y
+end
+
+function C:MoveEntry(entry, slot)
+	local visible = self.metrics.visible
+	local target = visible[slot]
+	if not target or target == entry then return false end
+	local fromSlot
+	for i, e in ipairs(visible) do if e == entry then fromSlot = i break end end
+	for i, e in ipairs(ordered) do if e == entry then table.remove(ordered, i) break end end
+	for i, e in ipairs(ordered) do
+		if e == target then
+			-- Moving forward puts the button behind the target, moving back puts it in front.
+			table.insert(ordered, (fromSlot and slot > fromSlot) and i + 1 or i, entry)
+			return true
+		end
+	end
+	ordered[#ordered + 1] = entry
+	return true
+end
+
+function C:BeginDrag(entry)
+	if not entry.collected or self.dragEntry or InCombatLockdown() and entry.frame:IsProtected() then return end
+	self.dragEntry = entry
+	local b, meta = entry.frame, Meta(entry.frame)
+	if GameTooltip:IsOwned(b) then GameTooltip:Hide() end
+	self.dragger = self.dragger or CreateFrame("Frame")
+	self.dragger:SetScript("OnUpdate", function()
+		local slot, x, y = C:CursorSlot()
+		if not slot then return end
+		local scale = C.metrics.scale
+		meta.ClearAllPoints(b)
+		meta.SetPoint(b, "CENTER", C.content, "TOPLEFT", x / scale, -y / scale)
+		if C:MoveEntry(entry, slot) then C:Layout() end
+	end)
+	self:Layout()
+end
+
+function C:EndDrag(entry)
+	if self.dragEntry ~= entry then return end
+	self.dragger:SetScript("OnUpdate", nil)
+	self.dragEntry = nil
+	self.dragEndTime = GetTime()
+	self:SaveOrder()
+	self:Layout()
 end
 
 function C:PositionWindow(window)

@@ -175,6 +175,9 @@ function O:Register()
 		layout:AddInitializer(CreateSettingsButtonInitializer(L.MANAGE, L.MANAGE_BTN, function()
 			if ns.collector then ns.collector:ShowManager() end
 		end, L.MANAGE_TT, true))
+		layout:AddInitializer(CreateSettingsButtonInitializer(L.SORT_RESET, L.SORT_RESET_BTN, function()
+			if ns.collector then ns.collector:ResetOrder() end
+		end, L.SORT_RESET_TT, true))
 
 		Header(layout, L.SECTION_INFO)
 		layout:AddInitializer(CreateSettingsButtonInitializer(L.RESET_ALL, L.RESET_ALL_BTN, function()

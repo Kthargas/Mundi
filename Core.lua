@@ -43,6 +43,7 @@ ns.DEFAULTS = {
 		autoHide = 0,
 		point = nil,
 		excluded = {},
+		order = {},
 		manual = {},
 	},
 }
