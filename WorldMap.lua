@@ -150,10 +150,15 @@ end
 
 function W:CreateGrip()
 	local map = WorldMapFrame
-	local grip = CreateFrame("Button", nil, map)
-	grip:SetSize(16, 16)
-	grip:SetPoint("BOTTOMRIGHT", map, "BOTTOMRIGHT", -2, 2)
-	grip:SetFrameLevel(map:GetFrameLevel() + 600)
+	-- The border frame lies over the whole map in HIGH strata and catches the mouse; the grip has to sit
+	-- above it, or only a corner pixel outside the frame reacts.
+	local border = map.BorderFrame or map
+	local grip = CreateFrame("Button", nil, border)
+	grip:SetSize(20, 20)
+	grip:SetPoint("BOTTOMRIGHT", map, "BOTTOMRIGHT", -3, 3)
+	grip:SetFrameStrata(border:GetFrameStrata())
+	grip:SetFrameLevel(border:GetFrameLevel() + 700)
+	grip:SetHitRectInsets(-6, -6, -6, -6)
 	grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
 	grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
 	grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")

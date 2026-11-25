@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 - 2026-11-25
+
+- Fixed: the world map resize grip was hard to grab. Blizzard's border frame lay over it, so only a pixel outside the frame reacted. The grip now sits above the border and has a larger hit area.
+
 ## 1.2.0 - 2026-11-25
 
 - World map, reworked after feedback:
