@@ -35,6 +35,8 @@ own settings window.
 - Window: Blizzard panel with title or compact tooltip style, grid or list (icon and name), columns, button
   size, spacing, next to the button or free to drag, close after a click, close when the mouse leaves,
   closes with Escape.
+- Drag the buttons inside the window to rearrange them; the order is saved. Buttons that stay on the
+  minimap keep their own LibDBIcon dragging along the edge.
 - Button picker: choose which buttons are collected and which stay on the minimap.
 - `/sqm add <FrameName>` collects a button the automatic search did not catch.
 
@@ -45,7 +47,7 @@ own settings window.
 - Auto zoom out after a few seconds.
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
-- Right and middle click on the map: tracking menu, calendar, world map, addon button window, ping or nothing.
+- Right and middle click on the map: tracking menu, addon button window or just the Blizzard ping.
 - Key bindings for the addon button window and the options; entry in the addon compartment.
 
 ## Installation

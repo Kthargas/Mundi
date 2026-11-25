@@ -240,10 +240,55 @@ function M:ApplyCoords()
 		coords:SetPoint("BOTTOM", Minimap, "BOTTOM", 0, 8)
 	elseif pos == "TOP" then
 		coords:SetPoint("TOP", Minimap, "TOP", 0, -8)
+	elseif ns.db.map.headerPos == "BELOW" and MinimapCluster.ZoneTextButton then
+		-- The header already sits under the map: put the coordinates under the header.
+		local zone = MinimapCluster.ZoneTextButton
+		local scale = zone:GetEffectiveScale() / coords:GetEffectiveScale()
+		coords:SetPoint("TOP", zone, "BOTTOM", 0, -2 * scale)
 	else
 		coords:SetPoint("TOP", Minimap, "BOTTOM", 0, -(math.ceil(self:GetBorderExtent()) + 3))
 	end
 	coords:SetFrameLevel((self.border and self.border:GetFrameLevel() or Minimap:GetFrameLevel()) + 4)
+end
+
+-- Header (zone name, clock, calendar, tracking): directly above or below the square map.
+function M:ApplyHeader()
+	local cluster = MinimapCluster
+	local container, zone = cluster.MinimapContainer, cluster.ZoneTextButton
+	if not (container and zone) then return end
+	local db = ns.db.map
+	local scale = container:GetScale()
+	if not scale or scale <= 0 then scale = 1 end
+	local extent = self:GetBorderExtent()
+	local margin = math.ceil(extent) + 2
+	local gap = db.headerGap or 0
+	local zoneHeight = zone:GetHeight() * zone:GetScale()
+	-- Zone button offsets are in its own units, the map edge is in container units.
+	local edge = extent * scale / zone:GetScale() + gap / zone:GetScale()
+
+	container:ClearAllPoints()
+	zone:ClearAllPoints()
+	if db.headerPos == "BELOW" then
+		container:SetPoint("TOP", cluster, "TOP", 10 / scale, (margin - extent))
+		zone:SetPoint("TOP", Minimap, "BOTTOM", 0, -edge)
+	else
+		container:SetPoint("TOP", cluster, "TOP", 10 / scale, -(zoneHeight + gap) / scale + (margin - extent))
+		zone:SetPoint("BOTTOM", Minimap, "TOP", 0, edge)
+	end
+
+	-- Mail and other indicators: left of the header instead of hanging over the map.
+	local indicator = cluster.IndicatorFrame
+	if indicator then
+		indicator:ClearAllPoints()
+		local left = (cluster.Tracking and cluster.Tracking:IsShown()) and cluster.Tracking or zone
+		indicator:SetPoint("RIGHT", left, "LEFT", -2, 0)
+	end
+	-- Addon compartment: right of the calendar instead of below it.
+	local compartment, calendar = _G.AddonCompartmentFrame, _G.GameTimeFrame
+	if compartment and calendar then
+		compartment:ClearAllPoints()
+		compartment:SetPoint("LEFT", calendar, "RIGHT", 0, 0)
+	end
 end
 
 function M:ApplyDiel()
@@ -279,13 +324,11 @@ function M:Apply()
 	self:ApplyMask()
 	self:ApplyBorder()
 	self:ApplySize()
+	self:ApplyHeader()
 	self:ApplyZoomButtons()
 	self:ApplyCoords()
 	self:ApplyDiel()
 	self:ApplyBackdropButtons()
-	if MinimapCluster and MinimapCluster.Layout then
-		MinimapCluster:Layout()
-	end
 	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
 end
 

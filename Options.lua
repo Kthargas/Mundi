@@ -106,6 +106,12 @@ function O:Register()
 	DependsOn(self:Slider(category, "map", "borderScale", L.BORDER_SCALE, L.BORDER_SCALE_TT, 0.4, 1.6, 0.05, Percent), borderInit, HasArt)
 	DependsOn(self:Slider(category, "map", "borderOffset", L.BORDER_OFFSET, L.BORDER_OFFSET_TT, -10, 20, 1), borderInit, HasArt)
 
+	self:Dropdown(category, "map", "headerPos", L.HEADER_POS, L.HEADER_POS_TT, {
+		{ key = "ABOVE", label = L.HEADER_ABOVE },
+		{ key = "BELOW", label = L.HEADER_BELOW },
+	})
+	self:Slider(category, "map", "headerGap", L.HEADER_GAP, L.HEADER_GAP_TT, -10, 20, 1)
+
 	self:CVarCheckbox(category, "rotateMinimap", "SQUAREMAP_CVAR_ROTATE", L.ROTATE, L.ROTATE_TT)
 	self:Dropdown(category, "map", "zoomButtons", L.ZOOM_BUTTONS, L.ZOOM_BUTTONS_TT, {
 		{ key = "HOVER", label = L.ZOOM_HOVER },
@@ -169,6 +175,9 @@ function O:Register()
 		layout:AddInitializer(CreateSettingsButtonInitializer(L.MANAGE, L.MANAGE_BTN, function()
 			if ns.collector then ns.collector:ShowManager() end
 		end, L.MANAGE_TT, true))
+		layout:AddInitializer(CreateSettingsButtonInitializer(L.SORT_RESET, L.SORT_RESET_BTN, function()
+			if ns.collector then ns.collector:ResetOrder() end
+		end, L.SORT_RESET_TT, true))
 
 		Header(layout, L.SECTION_INFO)
 		layout:AddInitializer(CreateSettingsButtonInitializer(L.RESET_ALL, L.RESET_ALL_BTN, function()
@@ -191,7 +200,6 @@ function O:Open()
 	end
 end
 
-StaticPopupDialogs = StaticPopupDialogs or {}
 StaticPopupDialogs["SQUAREMAP_RESET"] = {
 	text = L.RESET_CONFIRM,
 	button1 = YES,

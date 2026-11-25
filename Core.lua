@@ -17,6 +17,8 @@ ns.DEFAULTS = {
 		zoomButtons = "HOVER",
 		autoZoom = 0,
 		coordsPos = "BELOW",
+		headerPos = "ABOVE",
+		headerGap = 1,
 		showDiel = true,
 		showInstance = true,
 		showPing = true,
@@ -41,6 +43,7 @@ ns.DEFAULTS = {
 		autoHide = 0,
 		point = nil,
 		excluded = {},
+		order = {},
 		manual = {},
 	},
 }
@@ -121,6 +124,11 @@ events:SetScript("OnEvent", function(self, event, arg1)
 		SquareMapDB = SquareMapDB or {}
 		CopyDefaults(ns.DEFAULTS, SquareMapDB)
 		ns.db = SquareMapDB
+		-- 1.0.1: calendar and world map click actions were removed (they spread taint).
+		for _, key in ipairs({ "rightClick", "middleClick" }) do
+			local v = ns.db.map[key]
+			if v == "CALENDAR" or v == "WORLDMAP" then ns.db.map[key] = ns.DEFAULTS.map[key] end
+		end
 		if ns.options and ns.options.Register then
 			local ok, err = pcall(ns.options.Register, ns.options)
 			if not ok then geterrorhandler()(err) end
