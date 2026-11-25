@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.1 - 2026-11-25
+
+- Fixed: sharing a map pin (shift-click) showed "SquareMap has been blocked from an action" for CopyToClipboard(). The world map module ran Blizzard's map code from addon code on every open (canvas refit for the custom size, switching to the cave map), and pins created meanwhile were tainted.
+  - The custom window size is now set right after Blizzard sets its own size, so Blizzard refits the canvas itself in secure code. Only a live drag of the grip still refits from addon code.
+  - Opening the map no longer switches to the cave map; Blizzard's map already does that inside a cave.
+  - Zooming into cave maps is now opt-in (World map options), with a note about the taint.
+
 ## 1.3.0 - 2026-11-25
 
 - World map caves, reworked: instead of drawing caves into the zone map, zooming in over a cave (one more scroll at the closest zoom) opens Blizzard's cave map, and one more scroll out at the widest zoom goes back to the zone. Opening the map inside a cave shows the cave map.

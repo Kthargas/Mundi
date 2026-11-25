@@ -94,32 +94,50 @@ function W:OnWheel(delta)
 	end
 end
 
--- Opening the map inside a cave shows the cave map instead of the zone around it.
-function W:ShowPlayerCave()
-	if not db().caves then return end
-	local map = WorldMapFrame
-	local best = C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
-	if not best or ns.IsSecret(best) then return end
-	local info = C_Map.GetMapInfo(best)
-	if IsCaveType(info) and info.parentMapID == map:GetMapID() then
-		map:SetMapID(best)
-	end
-end
-
 ---------------------------------------------------------------------------
 -- Resizing the windowed map
 ---------------------------------------------------------------------------
 
-function W:ApplySize()
-	local map = WorldMapFrame
-	if not map or (map.IsMaximized and map:IsMaximized()) then return end
+-- Taint: Blizzard's map code must never run from addon code, or pins it creates meanwhile (the shared
+-- map pin, for example) carry the taint and their protected actions (copying the pin to the clipboard)
+-- get blocked. So the window size is changed with the plain frame size call right after Blizzard sets
+-- its own size; Blizzard then refits the map canvas itself, in secure code.
+
+local function TargetSize(extra)
 	local width = db().width
 	if not width then return end
 	local spacer = Spacer()
-	local height = spacer + width * (DEFAULT_HEIGHT - spacer) / DEFAULT_WIDTH
-	local questLog = (map.QuestLog and map.QuestLog:IsShown()) and (map.questLogWidth or 0) or 0
-	map:SetSize(width + questLog, height)
-	map:OnFrameSizeChanged()
+	return width + (extra or 0), spacer + width * (DEFAULT_HEIGHT - spacer) / DEFAULT_WIDTH
+end
+
+local function QuestLogExtra(map)
+	return (map.QuestLog and map.QuestLog:IsShown()) and (map.questLogWidth or 0) or 0
+end
+
+-- Called after Blizzard's SetSize/SetWidth on the map, and directly while the map is hidden.
+function W:ResizeFrame(extra)
+	local map = WorldMapFrame
+	if self.sizing or not map or (map.IsMaximized and map:IsMaximized()) then return end
+	local width, height = TargetSize(extra or QuestLogExtra(map))
+	if not width then return end
+	self.sizing = true
+	map:SetSize(width, height)
+	self.sizing = nil
+end
+
+-- Only for an explicit drag of the grip: the canvas has to follow the frame live, and Blizzard does not
+-- refit it on its own. The map is refitted again in secure code the next time it opens.
+function W:ApplySize()
+	local map = WorldMapFrame
+	if not map or (map.IsMaximized and map:IsMaximized()) then return end
+	local width, height = TargetSize(QuestLogExtra(map))
+	if not width then
+		width, height = DEFAULT_WIDTH + QuestLogExtra(map), DEFAULT_HEIGHT
+	end
+	self.sizing = true
+	map:SetSize(width, height)
+	self.sizing = nil
+	if map:IsShown() and map.OnFrameSizeChanged then map:OnFrameSizeChanged() end
 end
 
 function W:CreateGrip()
@@ -147,10 +165,7 @@ function W:CreateGrip()
 	grip:SetScript("OnMouseDown", function(self, button)
 		if button == "RightButton" then
 			db().width = nil
-			if map.Minimize and not (map.IsMaximized and map:IsMaximized()) then
-				map:SetSize(DEFAULT_WIDTH + ((map.QuestLog and map.QuestLog:IsShown()) and (map.questLogWidth or 0) or 0), DEFAULT_HEIGHT)
-				map:OnFrameSizeChanged()
-			end
+			W:ApplySize()
 			return
 		end
 		if button ~= "LeftButton" then return end
@@ -243,17 +258,22 @@ function W:Setup()
 	if map.OnMapChanged then
 		hooksecurefunc(map, "OnMapChanged", function() W.edge = nil end)
 	end
-	-- Blizzard sets the window size when the map opens, minimizes or toggles the quest log; ours wins afterwards.
-	for _, method in ipairs({ "Minimize", "SetQuestLogPanelShown" }) do
-		if map[method] then hooksecurefunc(map, method, function() W:ApplySize() W:UpdateGrip() end) end
+	-- Blizzard sets the window size when it minimizes the map (SetSize) or toggles the quest log
+	-- (SetWidth), and refits the canvas right after. Our size goes in between, so that refit uses it.
+	hooksecurefunc(map, "SetSize", function() W:ResizeFrame() end)
+	hooksecurefunc(map, "SetWidth", function(_, width)
+		local extra = map.minimizedWidth and width and math.max(0, width - map.minimizedWidth) or nil
+		W:ResizeFrame(extra)
+	end)
+	for _, method in ipairs({ "Minimize", "Maximize" }) do
+		if map[method] then hooksecurefunc(map, method, function() W:UpdateGrip() end) end
 	end
-	if map.Maximize then hooksecurefunc(map, "Maximize", function() W:UpdateGrip() end) end
 	map:HookScript("OnShow", function()
 		W.edge = nil
 		W:UpdateGrip()
-		W:ApplySize()
-		W:ShowPlayerCave()
 	end)
+	-- Blizzard does not resize the map on every open, so set the saved size once while it is still hidden.
+	if not map:IsShown() then self:ResizeFrame() end
 	self:Apply()
 end
 
@@ -276,7 +296,4 @@ end
 function W:Apply()
 	if not self.hooked then return end
 	if self.coords then self.coords:SetShown(db().coords) end
-	if WorldMapFrame:IsShown() then
-		self:ApplySize()
-	end
 end
