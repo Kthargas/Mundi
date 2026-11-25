@@ -30,7 +30,7 @@ own settings window (the action buttons on a separate "Actions" page under Squar
 ### World map
 
 - Caves (opt-in): scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return. Switching maps from an addon taints the world map, so this is off by default; inside a cave Blizzard's map opens on the cave anyway.
-- Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets).
+- Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets). After resizing, SquareMap offers a UI reload so Blizzard applies the size itself without taint.
 - Player and cursor coordinates under the map.
 
 ### Addon button collector
@@ -52,7 +52,7 @@ own settings window (the action buttons on a separate "Actions" page under Squar
 - Auto zoom out after a few seconds.
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
-- Right and middle click on the map: tracking menu, calendar, world map, addon button window, options or just the Blizzard ping.
+- Right and middle click on the map: tracking menu, calendar, addon button window, layout editor, options or just the Blizzard ping.
 - Layout editor (`/sqm layout`): drag every minimap button and display (mail, tracking, calendar, clock, zoom, ...) to any spot around the map, with Blizzard's Edit Mode look.
 - Key bindings for the addon button window and the options; entry in the addon compartment.
 

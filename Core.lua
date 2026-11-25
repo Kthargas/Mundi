@@ -4,6 +4,7 @@ local L = ns.L
 _G.SquareMap = ns
 ns.version = C_AddOns and C_AddOns.GetAddOnMetadata(ADDON, "Version") or "1.0.0"
 ns.modules = {}
+ns.reported = {}
 
 -- Built-in game texture used as a square mask (no custom textures are shipped).
 ns.SQUARE_MASK = "Interface\\Buttons\\WHITE8X8"
@@ -170,8 +171,13 @@ events:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 events:SetScript("OnEvent", function(self, event, arg1, arg2)
 	if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
 		if arg1 == ADDON then
+			-- Once per blocked function and session; a tainted map can block the same call many times.
+			local key = event .. tostring(arg2)
+			if ns.reported[key] then return end
+			ns.reported[key] = true
 			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO) .. " v" .. tostring(ns.version))
 			ns.PrintTrace()
+			if ns.worldmap and ns.worldmap.tainted then ns.Print(L.WM_TAINTED) end
 		end
 		return
 	end
@@ -189,6 +195,10 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		end
 		-- 1.3.1: switching to cave maps uses Blizzard's SetMapID from addon code, which taints the map
 		-- (map pin sharing got blocked). It is opt-in now; turn it off once for existing settings.
+		-- 1.4.1: opening the world map from addon code tainted it (blocked map pins in combat).
+		for _, field in ipairs({ "rightClick", "middleClick" }) do
+			if ns.db.map[field] == "WORLDMAP" then ns.db.map[field] = "NONE" end
+		end
 		if not ns.db.worldmap.cavesOptIn then
 			ns.db.worldmap.caves = false
 			ns.db.worldmap.cavesOptIn = true
