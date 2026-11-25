@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="SQUAREMAP_TOGGLE" header="SQUAREMAP" category="ADDONS">
+		SquareMap_ToggleCollector()
+	</Binding>
+	<Binding name="SQUAREMAP_OPTIONS" category="ADDONS">
+		SquareMap_OpenOptions()
+	</Binding>
+</Bindings>
