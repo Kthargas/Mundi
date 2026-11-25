@@ -120,7 +120,16 @@ ns.events = events
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
-events:SetScript("OnEvent", function(self, event, arg1)
+-- Diagnostics: name the blocked function in chat so taint reports can be tracked down.
+events:RegisterEvent("ADDON_ACTION_BLOCKED")
+events:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+events:SetScript("OnEvent", function(self, event, arg1, arg2)
+	if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
+		if arg1 == ADDON then
+			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO))
+		end
+		return
+	end
 	if event == "ADDON_LOADED" and arg1 == ADDON then
 		SquareMapDB = SquareMapDB or {}
 		CopyDefaults(ns.DEFAULTS, SquareMapDB)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3 - 2026-11-25
+
+- Diagnostics: when the game blocks an action from SquareMap, the blocked function is named in chat.
+
 ## 1.0.2 - 2026-11-25
 
 - New: the header (zone name, clock, calendar) stretches over the full width of the map. The option "Full width header" turns it off. With the full header the mail icon sits in the map corner.
