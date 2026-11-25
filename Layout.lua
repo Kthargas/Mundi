@@ -188,7 +188,7 @@ function E:SetSetting(spec, value)
 	if self.active then self:UpdateDialog() end
 end
 
--- The anchors a frame had before SquareMap first moved it, to put it back on reset.
+-- The anchors a frame had before Mundi first moved it, to put it back on reset.
 local original = {}
 
 local function SavePoints(key, frame)
@@ -575,12 +575,12 @@ local function CreateSlider(parent, minValue, maxValue, steps, format, onChange)
 	slider:SetSize(190, 20)
 	local labels = MinimalSliderWithSteppersMixin and MinimalSliderWithSteppersMixin.Label
 	local formatters = labels and CreateMinimalSliderFormatter and { [labels.Right] = CreateMinimalSliderFormatter(labels.Right, format) }
-	function slider:SetSQMValue(value)
+	function slider:SetMundiValue(value)
 		self.updating = true
 		self:Init(value, minValue, maxValue, steps, formatters)
 		self.updating = nil
 	end
-	slider:SetSQMValue(minValue)
+	slider:SetMundiValue(minValue)
 	slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
 		if not slider.updating then onChange(value) end
 	end, slider)
@@ -640,10 +640,10 @@ function E:CreatePanel(el)
 	if not el.fixed then
 		local scale = CreateSlider(panel, MIN_SCALE * 100, MAX_SCALE * 100, 30, function(value) return ("%d%%"):format(value) end,
 			function(value) E:SetScale(key, value / 100) end)
-		Add(L.LAYOUT_SCALE, scale, function() scale:SetSQMValue(E:GetScale(key) * 100) end, 14)
+		Add(L.LAYOUT_SCALE, scale, function() scale:SetMundiValue(E:GetScale(key) * 100) end, 14)
 		local layer = CreateSlider(panel, MIN_LAYER, MAX_LAYER, MAX_LAYER - MIN_LAYER, function(value) return ("%+d"):format(value) end,
 			function(value) E:SetLayer(key, value) end)
-		Add(L.LAYOUT_LAYER, layer, function() layer:SetSQMValue(E:GetLayer(key)) end, 14)
+		Add(L.LAYOUT_LAYER, layer, function() layer:SetMundiValue(E:GetLayer(key)) end, 14)
 		panel.scale, panel.layer = scale, layer
 	end
 
@@ -659,7 +659,7 @@ function E:CreatePanel(el)
 			widget = CreateSlider(panel, spec.min, spec.max, steps, spec.format or function(value)
 				return tostring(math.floor(value + 0.5))
 			end, set)
-			refresh = function() widget:SetSQMValue(GetSetting(spec) or spec.min) end
+			refresh = function() widget:SetMundiValue(GetSetting(spec) or spec.min) end
 			inset = 14
 		else
 			widget = CreateDropdown(panel, spec.list, function() return GetSetting(spec) end, set)
@@ -675,7 +675,7 @@ function E:CreatePanel(el)
 end
 
 function E:CreateDialog()
-	local f = CreateFrame("Frame", "SquareMapLayoutDialog", UIParent)
+	local f = CreateFrame("Frame", "MundiLayoutDialog", UIParent)
 	f:SetSize(380, 300)
 	f:SetFrameStrata("DIALOG")
 	f:SetFrameLevel(200)
@@ -739,7 +739,7 @@ function E:CreateDialog()
 	-- on the editor that was just starting, so the first open of a session did nothing.
 	f:Hide()
 	f:SetScript("OnHide", function() if E.active then E:Stop() end end)
-	tinsert(UISpecialFrames, "SquareMapLayoutDialog")
+	tinsert(UISpecialFrames, "MundiLayoutDialog")
 	self.dialog = f
 	self.panels = {}
 	return f

@@ -1,7 +1,7 @@
 local ADDON, ns = ...
 local L = ns.L
 
--- Options in Blizzard's own settings window (Esc > Options > AddOns > SquareMap), built only from
+-- Options in Blizzard's own settings window (Esc > Options > AddOns > Mundi), built only from
 -- the stock Settings controls so it looks and behaves like every other game option.
 
 local O = { settings = {} }
@@ -18,7 +18,7 @@ local function ListOptions(list)
 end
 
 function O:Proxy(category, section, field, varType, name)
-	local variable = "SQUAREMAP_" .. section:upper() .. "_" .. field:upper()
+	local variable = "MUNDI_" .. section:upper() .. "_" .. field:upper()
 	local default = ns.DEFAULTS[section][field]
 	local setting = Settings.RegisterProxySetting(category, variable, varType, name, default,
 		function() return ns.db[section][field] end,
@@ -104,7 +104,7 @@ function O:Register()
 	-- Taint: the settings list reuses its control frames for every category. A button control first
 	-- shown for an addon page stays tainted, and when Blizzard later reuses it for the Discord button
 	-- (Social), C_Discord.IsUserOAuthed() gets blocked. So the action buttons live on their own page,
-	-- with frames that belong to SquareMap alone.
+	-- with frames that belong to Mundi alone.
 	if Settings.RegisterCanvasLayoutSubcategory then
 		self.actionsCategory = Settings.RegisterCanvasLayoutSubcategory(category, self:CreateActionsPanel(), L.SECTION_ACTIONS)
 	end
@@ -128,7 +128,7 @@ function O:BuildMap(category, layout)
 	self:Slider(category, "map", "combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_TT, 0.1, 1, 0.05, Percent)
 
 	Header(layout, L.SECTION_DISPLAYS)
-	local coordsInit = self:CVarCheckbox(category, "minimapShowPlayerCoords", "SQUAREMAP_CVAR_COORDS", L.COORDS, L.COORDS_TT)
+	local coordsInit = self:CVarCheckbox(category, "minimapShowPlayerCoords", "MUNDI_CVAR_COORDS", L.COORDS, L.COORDS_TT)
 	DependsOn(self:Dropdown(category, "map", "coordsPos", L.COORDS_POS, nil, {
 		{ key = "BELOW", label = L.COORDS_BELOW },
 		{ key = "INSIDE", label = L.COORDS_INSIDE },
@@ -247,7 +247,7 @@ function O:CreateActionsPanel()
 	Row(L.SORT_RESET, L.SORT_RESET_BTN, L.SORT_RESET_TT, function() ns.collector:ResetOrder() end)
 
 	Section(L.SECTION_DATA)
-	Row(L.RESET_ALL, L.RESET_ALL_BTN, L.RESET_ALL_TT, function() StaticPopup_Show("SQUAREMAP_RESET") end)
+	Row(L.RESET_ALL, L.RESET_ALL_BTN, L.RESET_ALL_TT, function() StaticPopup_Show("MUNDI_RESET") end)
 	return panel
 end
 
@@ -263,7 +263,7 @@ function O:Open()
 	end
 end
 
-StaticPopupDialogs["SQUAREMAP_RESET"] = {
+StaticPopupDialogs["MUNDI_RESET"] = {
 	text = L.RESET_CONFIRM,
 	button1 = YES,
 	button2 = NO,

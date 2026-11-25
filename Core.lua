@@ -1,12 +1,13 @@
 local ADDON, ns = ...
 local L = ns.L
 
-_G.SquareMap = ns
+_G.Mundi = ns
 ns.version = C_AddOns and C_AddOns.GetAddOnMetadata(ADDON, "Version") or "1.0.0"
 ns.modules = {}
 
--- Built-in game texture used as a square mask (no custom textures are shipped).
+-- Built-in game texture used as a square mask. The only own file is the logo.
 ns.SQUARE_MASK = "Interface\\Buttons\\WHITE8X8"
+ns.ICON = "Interface\\AddOns\\" .. ADDON .. "\\Textures\\Icon"
 
 ns.DEFAULTS = {
 	map = {
@@ -35,7 +36,7 @@ ns.DEFAULTS = {
 	},
 	collector = {
 		enabled = true,
-		icon = "BAG",
+		icon = "LOGO",
 		angle = 225,
 		showCount = true,
 		style = "PANEL",
@@ -128,9 +129,9 @@ end
 function ns:ResetSettings()
 	-- Put moved elements back first; their saved spots are about to go.
 	if ns.layout and ns.db and ns.db.layout then ns.layout:ResetAll() end
-	wipe(SquareMapDB)
-	CopyDefaults(ns.DEFAULTS, SquareMapDB)
-	ns.db = SquareMapDB
+	wipe(MundiDB)
+	CopyDefaults(ns.DEFAULTS, MundiDB)
+	ns.db = MundiDB
 	ns:ApplyAll()
 	if ns.options and ns.options.Refresh then ns.options:Refresh() end
 end
@@ -142,9 +143,16 @@ events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
-		SquareMapDB = SquareMapDB or {}
-		CopyDefaults(ns.DEFAULTS, SquareMapDB)
-		ns.db = SquareMapDB
+		-- 2.0.0: SquareMap is now Mundi. Settings saved under the old name are taken over once
+		-- (WTF\...\SavedVariables\SquareMap.lua renamed to Mundi.lua keeps them).
+		if not MundiDB and type(SquareMapDB) == "table" then
+			MundiDB = SquareMapDB
+			ns.migrated = true
+		end
+		SquareMapDB = nil
+		MundiDB = MundiDB or {}
+		CopyDefaults(ns.DEFAULTS, MundiDB)
+		ns.db = MundiDB
 		-- 1.0.6: the click actions are back (the blocked popup came from the ping listener). Versions
 		-- 1.0.1 to 1.0.5 had reset right click to the ping; give it the tracking menu again once.
 		if not ns.db.map.clicksRestored then
@@ -186,6 +194,14 @@ events:SetScript("OnEvent", function(self, event, arg1)
 			end
 		end
 		ns:ApplyAll()
+		-- The old SquareMap folder would run a second minimap next to this one: switch it off.
+		if C_AddOns and C_AddOns.GetAddOnInfo and C_AddOns.GetAddOnInfo("SquareMap") then
+			if C_AddOns.IsAddOnLoaded("SquareMap") then
+				C_AddOns.DisableAddOn("SquareMap")
+				ns.Print(L.OLD_ADDON)
+			end
+		end
+		if ns.migrated then ns.Print(L.MIGRATED) end
 	elseif event == "PLAYER_REGEN_ENABLED" then
 		for key, fn in pairs(afterCombat) do
 			afterCombat[key] = nil
@@ -209,13 +225,12 @@ local COMMANDS = {
 local function Help()
 	ns.Print(L.HELP_TITLE)
 	for _, c in ipairs(COMMANDS) do
-		print(("  |cffffd100/sqm%s|r - %s"):format(c[1] ~= "" and " " .. c[1] or "", c[2]))
+		print(("  |cffffd100/mundi%s|r - %s"):format(c[1] ~= "" and " " .. c[1] or "", c[2]))
 	end
 end
 
-SLASH_SQUAREMAP1 = "/squaremap"
-SLASH_SQUAREMAP2 = "/sqm"
-SlashCmdList.SQUAREMAP = function(msg)
+SLASH_MUNDI1 = "/mundi"
+SlashCmdList.MUNDI = function(msg)
 	local cmd, rest = strtrim(msg or ""):match("^(%S*)%s*(.-)$")
 	cmd = (cmd or ""):lower()
 	if cmd == "" or cmd == "options" or cmd == "config" then
@@ -232,7 +247,7 @@ SlashCmdList.SQUAREMAP = function(msg)
 	elseif cmd == "add" and rest ~= "" then
 		if ns.collector then ns.collector:AddManual(rest) end
 	elseif cmd == "reset" then
-		StaticPopup_Show("SQUAREMAP_RESET")
+		StaticPopup_Show("MUNDI_RESET")
 	else
 		Help()
 	end
@@ -245,16 +260,16 @@ function ns.OpenOptions()
 end
 
 -- Key bindings (Bindings.xml)
-function SquareMap_ToggleCollector()
+function Mundi_ToggleCollector()
 	if ns.collector then ns.collector:Toggle() end
 end
 
-function SquareMap_OpenOptions()
+function Mundi_OpenOptions()
 	ns.OpenOptions()
 end
 
 -- Addon compartment entry (## AddonCompartmentFunc in the TOC)
-function SquareMap_OnAddonCompartmentClick(addonName, mouseButton)
+function Mundi_OnAddonCompartmentClick(addonName, mouseButton)
 	if mouseButton == "RightButton" then
 		if ns.collector then ns.collector:Toggle() end
 	else
@@ -262,7 +277,7 @@ function SquareMap_OnAddonCompartmentClick(addonName, mouseButton)
 	end
 end
 
-function SquareMap_OnAddonCompartmentEnter(addonName, menuButton)
+function Mundi_OnAddonCompartmentEnter(addonName, menuButton)
 	GameTooltip:SetOwner(menuButton, "ANCHOR_LEFT")
 	GameTooltip_SetTitle(GameTooltip, L.TITLE)
 	GameTooltip:AddLine(L.CMP_LEFT, 1, 1, 1)
@@ -270,6 +285,6 @@ function SquareMap_OnAddonCompartmentEnter(addonName, menuButton)
 	GameTooltip:Show()
 end
 
-function SquareMap_OnAddonCompartmentLeave()
+function Mundi_OnAddonCompartmentLeave()
 	GameTooltip:Hide()
 end

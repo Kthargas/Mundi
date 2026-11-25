@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 - 2026-11-25
+
+- SquareMap is now **Mundi** (Blizzlike Square Map). Folder, TOC, title, options, key bindings and frame names use the new name; the command is `/mundi` (`/sqm` and `/squaremap` are gone).
+- Own pixel art logo (golden M on a map-blue ground in Fray's frame): in the addon list, on the addon button (new icon "Logo", the default) and in a header field (there without its frame).
+- Coming from SquareMap: rename `WTF\Account\<ACCOUNT>\SavedVariables\SquareMap.lua` to `Mundi.lua` to keep your settings; Mundi takes them over and says so once. If the old SquareMap folder is still installed, Mundi switches it off and asks for a reload. Key bindings have to be set again.
+
 ## 1.9.0 - 2026-11-25
 
 - Options split into pages like Fray: SquareMap (minimap, displays, mouse buttons), Header, Addon buttons, World map and Actions. The Actions page is grouped into Minimap, Addon buttons and Data, with the same look as Fray's.

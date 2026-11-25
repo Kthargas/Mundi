@@ -201,10 +201,10 @@ end
 -- the UI is reloaded. After a reload the saved size is applied the clean way.
 function W:AskReload()
 	self.resized = nil
-	StaticPopup_Show("SQUAREMAP_WM_RELOAD")
+	StaticPopup_Show("MUNDI_WM_RELOAD")
 end
 
-StaticPopupDialogs["SQUAREMAP_WM_RELOAD"] = {
+StaticPopupDialogs["MUNDI_WM_RELOAD"] = {
 	text = L.WM_RELOAD,
 	button1 = L.WM_RELOAD_NOW,
 	button2 = L.WM_RELOAD_LATER,
