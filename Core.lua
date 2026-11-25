@@ -41,8 +41,6 @@ ns.DEFAULTS = {
 		angle = 225,
 		showCount = true,
 		style = "PANEL",
-		layout = "GRID",
-		columns = 5,
 		scale = 1,
 		spacing = 4,
 		anchor = "BUTTON",
@@ -221,6 +219,8 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 			end
 			header.fields = true
 		end
+		-- 1.8.3: the collector window is always a list; the grid settings are gone.
+		ns.db.collector.layout, ns.db.collector.columns = nil, nil
 		if not ns.db.worldmap.cavesOptIn then
 			ns.db.worldmap.caves = false
 			ns.db.worldmap.cavesOptIn = true

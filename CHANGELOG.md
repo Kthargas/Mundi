@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.3 - 2026-11-25
+
+- Addon button window: the grid layout is gone, the window always lists the buttons with their names. The "Layout" and "Columns" settings are removed.
+
 ## 1.8.2 - 2026-11-25
 
 - Header fields without a frame: only the bare icon sits at each end of the header bar. Function, clicks and tooltips stay the same.

@@ -555,8 +555,9 @@ function C:Layout()
 	local scale = cfg.scale
 	local cell = CELL * scale
 	local spacing = cfg.spacing
-	local list = cfg.layout == "LIST"
-	local columns = list and 1 or math.max(1, cfg.columns)
+	-- One button per row with its name (the icon grid is gone since 1.8.3).
+	local list = true
+	local columns = 1
 
 	local visible = {}
 	for _, entry in ipairs(ordered) do

@@ -68,7 +68,6 @@ local LISTS = {
 		return list
 	end,
 	style = function() return { { key = "PANEL", label = L.STYLE_PANEL }, { key = "COMPACT", label = L.STYLE_COMPACT } } end,
-	layout = function() return { { key = "GRID", label = L.LAYOUT_GRID }, { key = "LIST", label = L.LAYOUT_LIST } } end,
 	anchor = function() return { { key = "BUTTON", label = L.ANCHOR_BUTTON }, { key = "FREE", label = L.ANCHOR_FREE } } end,
 	place = function()
 		return { { key = "NONE", label = L.SLOT_FREE }, { key = "LEFT", label = L.SLOT_LEFT }, { key = "RIGHT", label = L.SLOT_RIGHT } }
@@ -153,8 +152,6 @@ local SETTINGS = {
 		Choice("collector", "icon", "COLLECTOR_ICON", "icon"),
 		Check("collector", "showCount", "SHOW_COUNT"),
 		Choice("collector", "style", "WINDOW_STYLE", "style"),
-		Choice("collector", "layout", "LAYOUT", "layout"),
-		Slider("collector", "columns", "COLUMNS", 1, 12, 1),
 		Slider("collector", "scale", "BUTTON_SCALE", 0.6, 1.6, 0.05, Percent),
 		Slider("collector", "spacing", "SPACING", 0, 16, 1),
 		Choice("collector", "anchor", "WINDOW_ANCHOR", "anchor"),

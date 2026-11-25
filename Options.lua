@@ -169,12 +169,6 @@ function O:Register()
 		{ key = "PANEL", label = L.STYLE_PANEL },
 		{ key = "COMPACT", label = L.STYLE_COMPACT },
 	}))
-	local layoutInit = Dep(self:Dropdown(category, "collector", "layout", L.LAYOUT, nil, {
-		{ key = "GRID", label = L.LAYOUT_GRID },
-		{ key = "LIST", label = L.LAYOUT_LIST },
-	}))
-	local columns = self:Slider(category, "collector", "columns", L.COLUMNS, nil, 1, 12, 1)
-	DependsOn(columns, layoutInit, function() return Enabled() and ns.db.collector.layout ~= "LIST" end)
 	Dep(self:Slider(category, "collector", "scale", L.BUTTON_SCALE, nil, 0.6, 1.6, 0.05, Percent))
 	Dep(self:Slider(category, "collector", "spacing", L.SPACING, nil, 0, 16, 1))
 	Dep(self:Dropdown(category, "collector", "anchor", L.WINDOW_ANCHOR, nil, {
