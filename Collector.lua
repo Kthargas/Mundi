@@ -520,6 +520,27 @@ function C:GetChrome(window)
 	return 8, 8, 8, 8
 end
 
+-- The panel's nine-slice art needs room for its corner pieces; below that the side edges poke out above
+-- and below the frame. Measure the corners instead of guessing, the art differs between clients.
+function C:GetMinSize(window)
+	if window ~= self.panel then return 0, 0 end
+	local nine = window.NineSlice
+	local tl, tr = nine and nine.TopLeftCorner, nine and nine.TopRightCorner
+	local bl, br = nine and nine.BottomLeftCorner, nine and nine.BottomRightCorner
+	local minW, minH = 150, 110
+	if not (tl and tr and bl and br) then return minW, minH end
+	local top, bottom, left, right = window:GetTop(), window:GetBottom(), window:GetLeft(), window:GetRight()
+	local h, w
+	if top and bottom and tl:GetBottom() and bl:GetTop() then
+		h = math.max(top - tl:GetBottom() + bl:GetTop() - bottom, top - tr:GetBottom() + br:GetTop() - bottom)
+		w = math.max(tl:GetRight() - left + right - tr:GetLeft(), bl:GetRight() - left + right - br:GetLeft())
+	else
+		h = math.max(tl:GetHeight() + bl:GetHeight(), tr:GetHeight() + br:GetHeight())
+		w = math.max(tl:GetWidth() + tr:GetWidth(), bl:GetWidth() + br:GetWidth())
+	end
+	return math.max(minW, math.ceil(w) + 2), math.max(minH, math.ceil(h) + 2)
+end
+
 function C:Layout()
 	if not self.content then return end
 	local cfg = db()
@@ -609,11 +630,12 @@ function C:Layout()
 	end
 
 	local left, top, right, bottom = self:GetChrome(window)
-	local minWidth = window == self.panel and 150 or 0
+	local minWidth, minHeight = self:GetMinSize(window)
 	local width = math.max(minWidth, w + left + right)
-	window:SetSize(width, h + top + bottom)
+	local height = math.max(minHeight, h + top + bottom)
+	window:SetSize(width, height)
 	content:ClearAllPoints()
-	content:SetPoint("TOPLEFT", window, "TOPLEFT", left + (width - left - right - w) / 2, -top)
+	content:SetPoint("TOPLEFT", window, "TOPLEFT", left + (width - left - right - w) / 2, -(top + (height - top - bottom - h) / 2))
 	content:SetSize(w, h)
 
 	self:UpdateButton()
