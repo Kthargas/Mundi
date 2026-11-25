@@ -30,7 +30,6 @@ local ELEMENTS = {
 	{ key = "coords", label = "EL_COORDS", get = function() local c = MinimapCluster and MinimapCluster.MinimapContainer return c and c.PlayerCoords end },
 	{ key = "collector", dock = true, label = "EL_COLLECTOR", get = function() return ns.collector and ns.collector.button end },
 }
-E.ELEMENTS = ELEMENTS
 
 local byKey = {}
 for _, el in ipairs(ELEMENTS) do byKey[el.key] = el end
@@ -169,7 +168,6 @@ local SETTINGS = {
 		Slider("collector", "autoHide", "AUTO_HIDE", 0, 10, 1, Seconds),
 	},
 }
-E.SETTINGS = SETTINGS
 
 local function GetSetting(spec)
 	if spec.get then return spec.get() end
@@ -281,12 +279,10 @@ function E:SetLayer(key, value)
 	if self.active then self:UpdateDialog() end
 end
 
--- Called by the map module after it has placed everything in its default spot.
 -- Elements that can be switched off on their own (the others have their own setting: day/night,
 -- instance difficulty, addon compartment, coordinates, addon button). Switched off means invisible and
 -- not clickable; Blizzard keeps showing and hiding the frame as usual underneath.
 local HIDEABLE = { mail = true, tracking = true, calendar = true, clock = true, zoomIn = true, zoomOut = true, landing = true, event = true }
-E.HIDEABLE = HIDEABLE
 local hiddenApplied = {}
 
 function E:IsHidden(key)
@@ -311,6 +307,7 @@ function E:SetHidden(key, hidden)
 	db().hidden[key] = hidden or nil
 end
 
+-- Called by the map module after it has placed everything in its default spot.
 function E:ApplyPositions()
 	for _, el in ipairs(ELEMENTS) do
 		self:ApplyHidden(el.key)

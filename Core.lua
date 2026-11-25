@@ -4,7 +4,6 @@ local L = ns.L
 _G.SquareMap = ns
 ns.version = C_AddOns and C_AddOns.GetAddOnMetadata(ADDON, "Version") or "1.0.0"
 ns.modules = {}
-ns.reported = {}
 
 -- Built-in game texture used as a square mask (no custom textures are shipped).
 ns.SQUARE_MASK = "Interface\\Buttons\\WHITE8X8"
@@ -24,7 +23,6 @@ ns.DEFAULTS = {
 		hideCompartment = false,
 		showDiel = true,
 		showInstance = true,
-		compass = true,
 		headerFade = false,
 		combatAlpha = 1,
 		rightClick = "TRACKING",
@@ -82,7 +80,7 @@ local function CopyDefaults(src, dst)
 end
 
 function ns.Print(...)
-	print("|cffffd100SquareMap:|r", ...)
+	print("|cffffd100" .. L.TITLE .. ":|r", ...)
 end
 
 -- Modules: { Init = fn, Apply = fn }. Init runs once at login, Apply whenever settings change.
@@ -137,64 +135,13 @@ function ns:ResetSettings()
 	if ns.options and ns.options.Refresh then ns.options:Refresh() end
 end
 
--- Diagnostics: remember the last SquareMap calls, so a blocked action can be traced back to them.
-local trace = {}
-function ns.Trace(label)
-	local now = GetTime()
-	local last = trace[#trace]
-	if last and last.label == label then
-		last.count, last.time = last.count + 1, now
-		return
-	end
-	trace[#trace + 1] = { label = label, count = 1, time = now }
-	if #trace > 8 then table.remove(trace, 1) end
-end
-
-local function Instrument(name, tbl)
-	if type(tbl) ~= "table" then return end
-	for key, fn in pairs(tbl) do
-		if type(fn) == "function" then
-			local label = name .. ":" .. tostring(key)
-			tbl[key] = function(...)
-				ns.Trace(label)
-				return fn(...)
-			end
-		end
-	end
-end
-
-function ns.PrintTrace()
-	local now = GetTime()
-	for i = #trace, math.max(1, #trace - 5), -1 do
-		local t = trace[i]
-		ns.Print(L.TRACE_LINE:format(t.label, t.count, now - t.time))
-	end
-end
-
 local events = CreateFrame("Frame")
 ns.events = events
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
--- Diagnostics: name the blocked function in chat so taint reports can be tracked down.
-events:RegisterEvent("ADDON_ACTION_BLOCKED")
-events:RegisterEvent("ADDON_ACTION_FORBIDDEN")
-events:SetScript("OnEvent", function(self, event, arg1, arg2)
-	if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
-		if arg1 == ADDON then
-			-- Once per blocked function and session; a tainted map can block the same call many times.
-			local key = event .. tostring(arg2)
-			if ns.reported[key] then return end
-			ns.reported[key] = true
-			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO) .. " v" .. tostring(ns.version))
-			ns.PrintTrace()
-			if ns.worldmap and ns.worldmap.tainted then ns.Print(L.WM_TAINTED) end
-		end
-		return
-	end
+events:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
-		for _, mod in ipairs(ns.modules) do Instrument(mod.name, mod) end
-		Instrument("options", ns.options)
 		SquareMapDB = SquareMapDB or {}
 		CopyDefaults(ns.DEFAULTS, SquareMapDB)
 		ns.db = SquareMapDB
@@ -221,7 +168,8 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 			header.fields = true
 		end
 		-- 1.8.3: the collector window is always a list; the grid settings are gone.
-		ns.db.collector.layout, ns.db.collector.columns = nil, nil
+		-- 1.9.0: the north marker is gone (the square map always keeps north up).
+		ns.db.collector.layout, ns.db.collector.columns, ns.db.map.compass = nil, nil, nil
 		if not ns.db.worldmap.cavesOptIn then
 			ns.db.worldmap.caves = false
 			ns.db.worldmap.cavesOptIn = true
@@ -247,12 +195,28 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 	end
 end)
 
--- Slash commands
+-- Slash commands (same layout as Fray: no argument opens the options, "help" lists the rest)
+local COMMANDS = {
+	{ "", L.CMD_OPTIONS },
+	{ "buttons", L.CMD_BUTTONS },
+	{ "manage", L.CMD_MANAGE },
+	{ "layout", L.CMD_LAYOUT },
+	{ "scan", L.CMD_SCAN },
+	{ "add <Frame>", L.CMD_ADD },
+	{ "reset", L.CMD_RESET },
+}
+
+local function Help()
+	ns.Print(L.HELP_TITLE)
+	for _, c in ipairs(COMMANDS) do
+		print(("  |cffffd100/sqm%s|r - %s"):format(c[1] ~= "" and " " .. c[1] or "", c[2]))
+	end
+end
+
 SLASH_SQUAREMAP1 = "/squaremap"
 SLASH_SQUAREMAP2 = "/sqm"
 SlashCmdList.SQUAREMAP = function(msg)
-	msg = strtrim(msg or "")
-	local cmd, rest = msg:match("^(%S*)%s*(.-)$")
+	local cmd, rest = strtrim(msg or ""):match("^(%S*)%s*(.-)$")
 	cmd = (cmd or ""):lower()
 	if cmd == "" or cmd == "options" or cmd == "config" then
 		ns.OpenOptions()
@@ -260,19 +224,17 @@ SlashCmdList.SQUAREMAP = function(msg)
 		if ns.collector then ns.collector:Toggle() end
 	elseif cmd == "manage" then
 		if ns.collector then ns.collector:ShowManager() end
+	elseif cmd == "layout" or cmd == "edit" then
+		if ns.layout then ns.layout:Toggle() end
 	elseif cmd == "scan" then
-		if ns.collector then ns.collector:Scan(true) end
+		if ns.collector then ns.collector:Scan() end
 		ns.Print(L.COLLECTED:format(ns.collector and ns.collector:Count() or 0))
 	elseif cmd == "add" and rest ~= "" then
 		if ns.collector then ns.collector:AddManual(rest) end
-	elseif cmd == "layout" or cmd == "edit" then
-		if ns.layout then ns.layout:Toggle() end
-	elseif cmd == "atlas" then
-		if ns.map then ns.map:PrintAtlasReport() end
 	elseif cmd == "reset" then
-		ns:ResetSettings()
+		StaticPopup_Show("SQUAREMAP_RESET")
 	else
-		ns.Print(L.HELP)
+		Help()
 	end
 end
 

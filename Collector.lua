@@ -84,7 +84,7 @@ local function DisplayName(name)
 	return clean
 end
 
--- Find the icon texture of a button (for the list layout and the manager window).
+-- Find the icon texture of a button (for the manager window).
 local SKIP_TEXTURES = {
 	[136430] = true, -- Interface\Minimap\MiniMap-TrackingBorder
 	[136467] = true, -- Interface\Minimap\UI-Minimap-Background
@@ -169,7 +169,7 @@ function C:GetLibDBIcon()
 	return LibStub and LibStub("LibDBIcon-1.0", true)
 end
 
-function C:Scan(force)
+function C:Scan()
 	local lib = self:GetLibDBIcon()
 	if lib then
 		if lib.GetButtonList then
@@ -230,10 +230,6 @@ function C:Count()
 		if entry.collected and entry.frame:IsShown() then n = n + 1 end
 	end
 	return n
-end
-
-function C:GetEntries()
-	return ordered
 end
 
 ---------------------------------------------------------------------------
@@ -555,9 +551,6 @@ function C:Layout()
 	local scale = cfg.scale
 	local cell = CELL * scale
 	local spacing = cfg.spacing
-	-- One button per row with its name (the icon grid is gone since 1.8.3).
-	local list = true
-	local columns = 1
 
 	local visible = {}
 	for _, entry in ipairs(ordered) do
@@ -570,26 +563,20 @@ function C:Layout()
 		end
 	end
 
-	-- In list mode each row gets the width of the longest name.
+	-- One row per button: its icon, then its name. Every row gets the width of the longest name.
 	local labelWidth = 0
-	if list then
-		for _, entry in ipairs(visible) do
-			local row = entry.row or CreateRow(entry)
-			row.text:SetText(entry.label)
-			labelWidth = math.max(labelWidth, row.text:GetUnboundedStringWidth())
-		end
-		labelWidth = math.min(math.max(labelWidth, 80), 220)
+	for _, entry in ipairs(visible) do
+		local row = entry.row or CreateRow(entry)
+		row.text:SetText(entry.label)
+		labelWidth = math.max(labelWidth, row.text:GetUnboundedStringWidth())
 	end
-	local cellW = list and (cell + LABEL_GAP + labelWidth + 4) or cell
+	labelWidth = math.min(math.max(labelWidth, 80), 220)
+	local rowW = cell + LABEL_GAP + labelWidth + 4
 
 	for index, entry in ipairs(visible) do
 		local b = entry.frame
 		local meta = Meta(b)
-		local i = index - 1
-		local col = i % columns
-		local rowIndex = math.floor(i / columns)
-		local x = col * (cellW + spacing)
-		local y = rowIndex * (cell + spacing)
+		local y = (index - 1) * (cell + spacing)
 
 		meta.SetParent(b, content)
 		b:SetFrameStrata(content:GetFrameStrata())
@@ -598,32 +585,26 @@ function C:Layout()
 		meta.SetAlpha(b, entry == self.dragEntry and 0.6 or 1)
 		if entry ~= self.dragEntry then
 			meta.ClearAllPoints(b)
-			meta.SetPoint(b, "CENTER", content, "TOPLEFT", (x + cell / 2) / scale, -(y + cell / 2) / scale)
+			meta.SetPoint(b, "CENTER", content, "TOPLEFT", (cell / 2) / scale, -(y + cell / 2) / scale)
 		end
 
-		if list then
-			local row = entry.row
-			row:SetParent(content)
-			row:SetFrameLevel(content:GetFrameLevel() + 1)
-			row:ClearAllPoints()
-			row:SetPoint("TOPLEFT", content, "TOPLEFT", x, -y)
-			row:SetSize(cellW, cell)
-			row.text:ClearAllPoints()
-			row.text:SetPoint("LEFT", row, "LEFT", cell + LABEL_GAP, 0)
-			row.text:SetWidth(labelWidth)
-			row:Show()
-		elseif entry.row then
-			entry.row:Hide()
-		end
+		local row = entry.row
+		row:SetParent(content)
+		row:SetFrameLevel(content:GetFrameLevel() + 1)
+		row:ClearAllPoints()
+		row:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -y)
+		row:SetSize(rowW, cell)
+		row.text:ClearAllPoints()
+		row.text:SetPoint("LEFT", row, "LEFT", cell + LABEL_GAP, 0)
+		row.text:SetWidth(labelWidth)
+		row:Show()
 	end
 
-	self.metrics = { visible = visible, columns = columns, cellW = cellW, cell = cell, spacing = spacing, scale = scale }
+	self.metrics = { visible = visible, cell = cell, spacing = spacing, scale = scale }
 
 	local count = #visible
-	local rows = math.max(1, math.ceil(count / columns))
-	local usedColumns = math.max(1, math.min(columns, count))
-	local w = usedColumns * cellW + (usedColumns - 1) * spacing
-	local h = rows * cell + (rows - 1) * spacing
+	local w = rowW
+	local h = math.max(1, count) * cell + math.max(0, count - 1) * spacing
 	self.emptyText:SetShown(count == 0)
 	if count == 0 then
 		w = math.max(w, self.emptyText:GetUnboundedStringWidth())
@@ -646,7 +627,7 @@ end
 -- Rearranging buttons by drag and drop
 ---------------------------------------------------------------------------
 
--- Index of the cell under the cursor, counted like the visible buttons.
+-- Index of the row under the cursor, counted like the visible buttons.
 function C:CursorSlot()
 	local m, content = self.metrics, self.content
 	local left, top = content:GetLeft(), content:GetTop()
@@ -654,9 +635,8 @@ function C:CursorSlot()
 	local s = content:GetEffectiveScale()
 	local cx, cy = GetCursorPosition()
 	local x, y = cx / s - left, top - cy / s
-	local col = math.min(m.columns - 1, math.max(0, math.floor(x / (m.cellW + m.spacing))))
 	local row = math.max(0, math.floor(y / (m.cell + m.spacing)))
-	return math.min(#m.visible, row * m.columns + col + 1), x, y
+	return math.min(#m.visible, row + 1), x, y
 end
 
 function C:MoveEntry(entry, slot)
@@ -982,7 +962,7 @@ function C:CreateManager()
 	rescan:SetPoint("BOTTOMRIGHT", -6, 4)
 	rescan:SetText(L.RESCAN)
 	rescan:SetScript("OnClick", function()
-		C:Scan(true)
+		C:Scan()
 		C:UpdateManager()
 	end)
 	if ButtonFrameTemplate_ShowButtonBar then ButtonFrameTemplate_ShowButtonBar(f) end

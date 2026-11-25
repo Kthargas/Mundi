@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0 - 2026-11-25
+
+- Options split into pages like Fray: SquareMap (minimap, displays, mouse buttons), Header, Addon buttons, World map and Actions. The Actions page is grouped into Minimap, Addon buttons and Data, with the same look as Fray's.
+- Slash commands like Fray: `/sqm` opens the options, `/sqm help` lists all commands; `/sqm reset` now asks before it resets everything.
+- Removed dead code and diagnostics: the blocked-action report and call trace (every SquareMap function was wrapped for it), `/sqm atlas`, the north marker (the square map always keeps north up), leftovers of the grid layout in the addon button window, and unused texts.
+
 ## 1.8.3 - 2026-11-25
 
 - Layout editor: single elements can be switched off with "Show": mail, tracking, calendar, clock, zoom buttons, expansion summary and event button (day/night, instance difficulty, addon compartment, coordinates and the addon button keep their own switch). A switched-off element is invisible and not clickable; in a header field the field stays empty and the bar gets shorter. Right click (reset) switches it on again.

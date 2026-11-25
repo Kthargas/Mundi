@@ -1,8 +1,8 @@
 local ADDON, ns = ...
 local L = ns.L
 
--- Extras on top of the Blizzard minimap: who pinged, instance info, north marker while rotating,
--- auto zoom out, fading header, combat opacity and mouse button actions.
+-- Extras on top of the Blizzard minimap: instance info, auto zoom out, fading header, combat opacity
+-- and mouse button actions.
 
 local E = {}
 ns:RegisterModule("extras", E)
@@ -66,45 +66,6 @@ function E:UpdateInstanceInfo()
 	f.diff:SetText(short)
 	f:SetFrameLevel(OverlayLevel())
 	f:Show()
-end
-
----------------------------------------------------------------------------
--- North marker while the minimap rotates
----------------------------------------------------------------------------
-
-function E:CreateCompass()
-	local f = CreateFrame("Frame", nil, Minimap)
-	f:SetSize(16, 16)
-	local text = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-	text:SetPoint("CENTER")
-	text:SetText(COMPASS_NORTH or "N")
-	f:Hide()
-	local elapsed = 0
-	f:SetScript("OnUpdate", function(self, dt)
-		elapsed = elapsed + dt
-		if elapsed < 0.02 then return end
-		elapsed = 0
-		local facing = GetPlayerFacing and GetPlayerFacing()
-		if not facing or ns.IsSecret(facing) then
-			text:Hide()
-			return
-		end
-		text:Show()
-		-- facing: 0 = north, counter-clockwise. On a rotating map the player looks up,
-		-- so north sits at "facing" radians clockwise from the top.
-		local x, y = math.sin(facing), math.cos(facing)
-		local half = Minimap:GetWidth() / 2 - 9
-		local m = math.max(math.abs(x), math.abs(y))
-		self:ClearAllPoints()
-		self:SetPoint("CENTER", Minimap, "CENTER", x / m * half, y / m * half)
-	end)
-	self.compass = f
-end
-
-function E:UpdateCompass()
-	local show = ns.db.map.compass and GetCVarBool("rotateMinimap")
-	self.compass:SetFrameLevel(OverlayLevel())
-	self.compass:SetShown(show)
 end
 
 ---------------------------------------------------------------------------
@@ -248,7 +209,6 @@ end
 function E:HookClicks()
 	-- Only hook, never replace Blizzard's handler: a replaced script would run the ping from addon code.
 	-- Blizzard pings on every mouse button; the chosen action runs in addition.
-	ns.Trace("extras:Minimap:HookScript(OnMouseUp)")
 	Minimap:HookScript("OnMouseUp", function(_, button)
 		local action
 		if button == "RightButton" then
@@ -266,7 +226,6 @@ end
 
 function E:Init()
 	self:CreateInstanceInfo()
-	self:CreateCompass()
 	self:CreateFader()
 	self:HookClicks()
 
@@ -292,20 +251,13 @@ function E:Init()
 	-- No MINIMAP_PING listener: in this client the ping callback is reserved for Blizzard code, and
 	-- registering it from an addon is a forbidden action (the "blocked from an action" popup).
 
-	if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
-		CVarCallbackRegistry:RegisterCallback("rotateMinimap", function() E:UpdateCompass() end, E)
-	end
-	EventRegistry:RegisterCallback("SquareMap.LayoutChanged", function()
-		E:UpdateCompass()
-		E:UpdateInstanceInfo()
-	end, E)
+	EventRegistry:RegisterCallback("SquareMap.LayoutChanged", function() E:UpdateInstanceInfo() end, E)
 	self.ready = true
 end
 
 function E:Apply()
 	if not self.ready then return end
 	self:UpdateInstanceInfo()
-	self:UpdateCompass()
 	self:UpdateFader()
 	self:UpdateCombatAlpha()
 	self:OnZoomChanged()
