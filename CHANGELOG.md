@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.6.0 - 2026-11-25
+
+- Layout editor: every setting is now available in the editor, per element. Click an element and the dialog shows its settings:
+  - Minimap: size, border, border scale and offset, rotation, auto zoom out, combat transparency, compass, right and middle click actions.
+  - Header: above or below the map, gap, full width, fade, hide addon compartment.
+  - Coordinates: show, position. Zoom buttons: visibility. Day/night and instance difficulty: show. Addon compartment: hide.
+  - Addon button collector: all window and button settings.
+  - Movable elements keep their size and layer sliders on top.
+- Map and header can be selected but not dragged (Blizzard's Edit Mode places them); right click on them resets their settings.
+- The dialog grows with the selected element's settings and uses Blizzard's sliders, dropdowns and checkboxes.
+
 ## 1.5.0 - 2026-11-25
 
 - Layout editor: size and layer per element.

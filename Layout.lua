@@ -10,7 +10,11 @@ ns:RegisterModule("layout", E)
 
 local function db() return ns.db.layout end
 
+-- Map and header are placed by Blizzard's Edit Mode and the header options; in the editor they can be
+-- selected for their settings but not dragged.
 local ELEMENTS = {
+	{ key = "map", label = "EL_MAP", fixed = true, level = 900, get = function() return Minimap end },
+	{ key = "header", label = "EL_HEADER", fixed = true, level = 950, get = function() return MinimapCluster and MinimapCluster.ZoneTextButton end },
 	{ key = "mail", label = "EL_MAIL", get = function() return MinimapCluster and MinimapCluster.IndicatorFrame end },
 	{ key = "tracking", label = "EL_TRACKING", get = function() return MinimapCluster and MinimapCluster.Tracking end },
 	{ key = "calendar", label = "EL_CALENDAR", get = function() return _G.GameTimeFrame end },
@@ -30,6 +34,111 @@ E.ELEMENTS = ELEMENTS
 
 local byKey = {}
 for _, el in ipairs(ELEMENTS) do byKey[el.key] = el end
+
+---------------------------------------------------------------------------
+-- Settings per element, shown in the editor dialog when the element is selected
+---------------------------------------------------------------------------
+
+local function Percent(value) return L.PERCENT:format(math.floor(value * 100 + 0.5)) end
+local function Seconds(value)
+	if value <= 0 then return L.OFF end
+	return L.SECONDS:format(value)
+end
+
+local LISTS = {
+	border = function()
+		local list = {}
+		local available = ns.map and ns.map.GetAvailableBorders and ns.map:GetAvailableBorders() or (ns.map and ns.map.BORDERS) or {}
+		for _, style in ipairs(available) do list[#list + 1] = { key = style.key, label = style.label } end
+		return list
+	end,
+	actions = function() return ns.extras and ns.extras.ACTIONS or {} end,
+	headerPos = function() return { { key = "ABOVE", label = L.HEADER_ABOVE }, { key = "BELOW", label = L.HEADER_BELOW } } end,
+	zoom = function()
+		return { { key = "HOVER", label = L.ZOOM_HOVER }, { key = "ALWAYS", label = L.ZOOM_ALWAYS }, { key = "NEVER", label = L.ZOOM_NEVER } }
+	end,
+	coordsPos = function()
+		return { { key = "BELOW", label = L.COORDS_BELOW }, { key = "INSIDE", label = L.COORDS_INSIDE }, { key = "TOP", label = L.COORDS_TOP } }
+	end,
+	icon = function()
+		local list = {}
+		for _, info in ipairs(ns.collector and ns.collector.ICONS or {}) do
+			list[#list + 1] = { key = info.key, label = ("|T%s:16:16:0:0:64:64:5:59:5:59|t %s"):format(info.texture, info.label) }
+		end
+		return list
+	end,
+	style = function() return { { key = "PANEL", label = L.STYLE_PANEL }, { key = "COMPACT", label = L.STYLE_COMPACT } } end,
+	layout = function() return { { key = "GRID", label = L.LAYOUT_GRID }, { key = "LIST", label = L.LAYOUT_LIST } } end,
+	anchor = function() return { { key = "BUTTON", label = L.ANCHOR_BUTTON }, { key = "FREE", label = L.ANCHOR_FREE } } end,
+}
+
+local function Check(section, field, label) return { kind = "check", section = section, field = field, label = label } end
+local function Slider(section, field, label, minValue, maxValue, step, format)
+	return { kind = "slider", section = section, field = field, label = label, min = minValue, max = maxValue, step = step, format = format }
+end
+local function Choice(section, field, label, list) return { kind = "dropdown", section = section, field = field, label = label, list = LISTS[list] } end
+local function CVar(cvar, label) return { kind = "cvar", cvar = cvar, label = label } end
+
+local SETTINGS = {
+	map = {
+		Slider("map", "size", "SIZE", 140, 400, 2),
+		Choice("map", "border", "BORDER", "border"),
+		Slider("map", "borderScale", "BORDER_SCALE", 0.4, 1.6, 0.05, Percent),
+		Slider("map", "borderOffset", "BORDER_OFFSET", -10, 20, 1),
+		CVar("rotateMinimap", "ROTATE"),
+		Slider("map", "autoZoom", "AUTOZOOM", 0, 60, 1, Seconds),
+		Slider("map", "combatAlpha", "COMBAT_ALPHA", 0.1, 1, 0.05, Percent),
+		Check("map", "compass", "COMPASS"),
+		Choice("map", "rightClick", "RIGHT_CLICK", "actions"),
+		Choice("map", "middleClick", "MIDDLE_CLICK", "actions"),
+	},
+	header = {
+		Choice("map", "headerPos", "HEADER_POS", "headerPos"),
+		Slider("map", "headerGap", "HEADER_GAP", -10, 20, 1),
+		Check("map", "headerFull", "HEADER_FULL"),
+		Check("map", "headerFade", "HEADER_FADE"),
+		Check("map", "hideCompartment", "HIDE_COMPARTMENT"),
+	},
+	coords = {
+		CVar("minimapShowPlayerCoords", "COORDS"),
+		Choice("map", "coordsPos", "COORDS_POS", "coordsPos"),
+	},
+	zoomIn = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
+	zoomOut = { Choice("map", "zoomButtons", "ZOOM_BUTTONS", "zoom") },
+	diel = { Check("map", "showDiel", "SHOW_DIEL") },
+	instance = { Check("map", "showInstance", "SHOW_INSTANCE") },
+	compartment = { Check("map", "hideCompartment", "HIDE_COMPARTMENT") },
+	collector = {
+		Check("collector", "enabled", "COLLECTOR_ENABLE"),
+		Choice("collector", "icon", "COLLECTOR_ICON", "icon"),
+		Check("collector", "showCount", "SHOW_COUNT"),
+		Choice("collector", "style", "WINDOW_STYLE", "style"),
+		Choice("collector", "layout", "LAYOUT", "layout"),
+		Slider("collector", "columns", "COLUMNS", 1, 12, 1),
+		Slider("collector", "scale", "BUTTON_SCALE", 0.6, 1.6, 0.05, Percent),
+		Slider("collector", "spacing", "SPACING", 0, 16, 1),
+		Choice("collector", "anchor", "WINDOW_ANCHOR", "anchor"),
+		Check("collector", "closeOnClick", "CLOSE_ON_CLICK"),
+		Slider("collector", "autoHide", "AUTO_HIDE", 0, 10, 1, Seconds),
+	},
+}
+E.SETTINGS = SETTINGS
+
+local function GetSetting(spec)
+	if spec.kind == "cvar" then return GetCVarBool(spec.cvar) end
+	return ns.db[spec.section][spec.field]
+end
+
+function E:SetSetting(spec, value)
+	if spec.kind == "cvar" then
+		SetCVar(spec.cvar, value and "1" or "0")
+	else
+		ns.db[spec.section][spec.field] = value
+	end
+	ns:ApplyAll()
+	if ns.options and ns.options.Refresh then ns.options:Refresh() end
+	if self.active then self:UpdateDialog() end
+end
 
 -- The anchors a frame had before SquareMap first moved it, to put it back on reset.
 local original = {}
@@ -55,6 +164,7 @@ end
 function E:Place(key)
 	local pos = db().positions[key]
 	local el = byKey[key]
+	if el and el.fixed then return false end
 	local frame = el and el.get()
 	if not (pos and CanMove(frame)) then return pos ~= nil end
 	SavePoints(key, frame)
@@ -87,6 +197,7 @@ function E:GetLayer(key) return db().layers[key] or 0 end
 function E:ApplyStyle(key)
 	local el = byKey[key]
 	local frame = el and el.get()
+	if el and el.fixed then return end
 	if not CanMove(frame) then return end
 	local scale, layer = db().scales[key], db().layers[key]
 	if scale or base.scale[key] then
@@ -142,6 +253,17 @@ end
 
 -- Position, size and layer back to Blizzard's.
 function E:ResetElement(key)
+	local el = byKey[key]
+	if el and el.fixed then
+		-- Map and header cannot move; right click puts their settings back instead.
+		for _, spec in ipairs(SETTINGS[key] or {}) do
+			if spec.section then ns.db[spec.section][spec.field] = ns.DEFAULTS[spec.section][spec.field] end
+		end
+		ns:ApplyAll()
+		if ns.options and ns.options.Refresh then ns.options:Refresh() end
+		if self.active then self:UpdateOverlays() self:UpdateDialog() end
+		return
+	end
 	db().scales[key], db().layers[key] = nil, nil
 	self:ApplyStyle(key)
 	self:Clear(key)
@@ -150,7 +272,7 @@ end
 function E:ResetAll()
 	for _, el in ipairs(ELEMENTS) do
 		local key = el.key
-		if db().positions[key] or db().scales[key] or db().layers[key] then self:ResetElement(key) end
+		if not el.fixed and (db().positions[key] or db().scales[key] or db().layers[key]) then self:ResetElement(key) end
 	end
 end
 
@@ -216,17 +338,23 @@ local function ShowTooltip(box)
 	if frame and not frame:IsShown() then
 		GameTooltip:AddLine(L.LAYOUT_HIDDEN, 0.8, 0.8, 0.8, true)
 	end
-	GameTooltip:AddLine(L.LAYOUT_TT_DRAG, 1, 1, 1, true)
-	GameTooltip:AddLine(L.LAYOUT_TT_WHEEL, 1, 1, 1, true)
-	GameTooltip:AddLine(L.LAYOUT_TT_LAYER, 1, 1, 1, true)
-	GameTooltip:AddLine(L.LAYOUT_TT_RESET, 1, 1, 1, true)
+	GameTooltip:AddLine(L.LAYOUT_TT_SELECT, 1, 1, 1, true)
+	if box.element.fixed then
+		GameTooltip:AddLine(L.LAYOUT_TT_FIXED, 0.8, 0.8, 0.8, true)
+		GameTooltip:AddLine(L.LAYOUT_TT_RESET_SETTINGS, 1, 1, 1, true)
+	else
+		GameTooltip:AddLine(L.LAYOUT_TT_DRAG, 1, 1, 1, true)
+		GameTooltip:AddLine(L.LAYOUT_TT_WHEEL, 1, 1, 1, true)
+		GameTooltip:AddLine(L.LAYOUT_TT_LAYER, 1, 1, 1, true)
+		GameTooltip:AddLine(L.LAYOUT_TT_RESET, 1, 1, 1, true)
+	end
 	GameTooltip:Show()
 end
 
 function E:CreateBox(el)
 	local box = CreateFrame("Frame", nil, UIParent)
 	box:SetFrameStrata("HIGH")
-	box:SetFrameLevel(1000)
+	box:SetFrameLevel(el.level or 1000)
 	box:EnableMouse(true)
 	box.element = el
 	SetKit(box, HIGHLIGHT_KIT)
@@ -256,6 +384,7 @@ function E:CreateBox(el)
 	box:EnableMouseWheel(true)
 	box:SetScript("OnMouseWheel", function(self, delta)
 		E:Select(self)
+		if el.fixed then return end
 		if IsShiftKeyDown() then
 			E:SetLayer(el.key, E:GetLayer(el.key) + delta)
 		else
@@ -267,8 +396,8 @@ end
 
 function E:StartDrag(box)
 	local frame = box.element.get()
-	if not CanMove(frame) then return end
 	self:Select(box)
+	if box.element.fixed or not CanMove(frame) then return end
 	GameTooltip:Hide()
 	local startX, startY = CenterOffset(frame)
 	local scale = Minimap:GetEffectiveScale()
@@ -320,7 +449,7 @@ function E:UpdateOverlays()
 			end
 			box:SetSize(w, h)
 			-- Hidden elements (no mail right now, no instance, ...) still get a box to place them.
-			box.label:SetShown(not frame:IsShown())
+			box.label:SetShown(not frame:IsShown() and not el.fixed)
 			box:SetAlpha(frame:IsShown() and 1 or 0.7)
 			box:Show()
 		elseif box then
@@ -346,16 +475,96 @@ local function CreateSlider(parent, minValue, maxValue, steps, format, onChange)
 	return slider
 end
 
+local ROW = 32
+local LABEL_X, CONTROL_X = 22, -26
+local PANEL_TOP = -128
+
 local function Row(parent, text, y)
 	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	label:SetPoint("TOPLEFT", 22, y)
+	label:SetPoint("TOPLEFT", LABEL_X, y - 4)
+	label:SetWidth(140)
+	label:SetJustifyH("LEFT")
 	label:SetText(text)
 	return label
 end
 
+local function CreateCheck(parent, onClick)
+	local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+	check:SetSize(26, 26)
+	check:SetScript("OnClick", function(self) onClick(self:GetChecked() and true or false) end)
+	return check
+end
+
+local function CreateDropdown(parent, list, get, set)
+	local dropdown = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+	dropdown:SetWidth(190)
+	if dropdown.SetupMenu then
+		dropdown:SetupMenu(function(_, root)
+			for _, item in ipairs(list()) do
+				root:CreateRadio(item.label, function() return get() == item.key end, function() set(item.key) end, item.key)
+			end
+		end)
+	end
+	return dropdown
+end
+
+-- One panel per element: size and layer (movable elements), then the element's own settings.
+function E:CreatePanel(el)
+	local panel = CreateFrame("Frame", nil, self.dialog)
+	panel:SetPoint("TOPLEFT", self.dialog, "TOPLEFT", 0, PANEL_TOP)
+	panel:SetPoint("RIGHT", self.dialog, "RIGHT")
+	panel.refresh = {}
+	panel.widgets = {}
+	local y = 0
+	local key = el.key
+
+	local function Add(label, widget, refresh, inset)
+		Row(panel, label, y)
+		widget:SetPoint("TOPRIGHT", panel, "TOPRIGHT", CONTROL_X - (inset or 0), y)
+		panel.refresh[#panel.refresh + 1] = refresh
+		y = y - ROW
+	end
+
+	if not el.fixed then
+		local scale = CreateSlider(panel, MIN_SCALE * 100, MAX_SCALE * 100, 30, function(value) return ("%d%%"):format(value) end,
+			function(value) E:SetScale(key, value / 100) end)
+		Add(L.LAYOUT_SCALE, scale, function() scale:SetSQMValue(E:GetScale(key) * 100) end, 14)
+		local layer = CreateSlider(panel, MIN_LAYER, MAX_LAYER, MAX_LAYER - MIN_LAYER, function(value) return ("%+d"):format(value) end,
+			function(value) E:SetLayer(key, value) end)
+		Add(L.LAYOUT_LAYER, layer, function() layer:SetSQMValue(E:GetLayer(key)) end, 14)
+		panel.scale, panel.layer = scale, layer
+	end
+
+	for _, spec in ipairs(SETTINGS[key] or {}) do
+		local widget, refresh, inset
+		local function set(value) E:SetSetting(spec, value) end
+		if spec.kind == "check" or spec.kind == "cvar" then
+			widget = CreateCheck(panel, set)
+			refresh = function() widget:SetChecked(GetSetting(spec) and true or false) end
+			inset = -2
+		elseif spec.kind == "slider" then
+			local steps = math.max(1, math.floor((spec.max - spec.min) / spec.step + 0.5))
+			widget = CreateSlider(panel, spec.min, spec.max, steps, spec.format or function(value)
+				return tostring(math.floor(value + 0.5))
+			end, set)
+			refresh = function() widget:SetSQMValue(GetSetting(spec) or spec.min) end
+			inset = 14
+		else
+			widget = CreateDropdown(panel, spec.list, function() return GetSetting(spec) end, set)
+			refresh = function() if widget.GenerateMenu then widget:GenerateMenu() end end
+		end
+		widget.spec = spec
+		panel.widgets[#panel.widgets + 1] = widget
+		Add(L[spec.label] or spec.label, widget, refresh, inset)
+	end
+	panel.height = -y
+	panel:SetHeight(math.max(1, -y))
+	return panel
+end
+
 function E:CreateDialog()
 	local f = CreateFrame("Frame", "SquareMapLayoutDialog", UIParent)
-	f:SetSize(340, 286)
+	f:SetSize(380, 300)
 	f:SetFrameStrata("DIALOG")
 	f:SetFrameLevel(200)
 	f:EnableMouse(true)
@@ -378,26 +587,15 @@ function E:CreateDialog()
 	hint:SetJustifyH("LEFT")
 	hint:SetText(L.LAYOUT_HINT)
 
-	-- The selected element: its name, size and layer.
-	local selected = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	selected:SetPoint("TOPLEFT", 22, -100)
-	selected:SetPoint("TOPRIGHT", -22, -100)
+	-- The selected element's name; its panel follows below.
+	local selected = f:CreateFontString(nil, "ARTWORK", "GameFontHighlightMedium")
+	selected:SetPoint("TOPLEFT", 22, -104)
+	selected:SetPoint("TOPRIGHT", -22, -104)
 	selected:SetJustifyH("LEFT")
 	f.selected = selected
 
-	Row(f, L.LAYOUT_SCALE, -128)
-	f.scale = CreateSlider(f, MIN_SCALE * 100, MAX_SCALE * 100, 30, function(value) return ("%d%%"):format(value) end,
-		function(value) if E.selected then E:SetScale(E.selected.element.key, value / 100) end end)
-	f.scale:SetPoint("TOPRIGHT", -40, -124)
-
-	Row(f, L.LAYOUT_LAYER, -158)
-	f.layer = CreateSlider(f, MIN_LAYER, MAX_LAYER, MAX_LAYER - MIN_LAYER, function(value) return ("%+d"):format(value) end,
-		function(value) if E.selected then E:SetLayer(E.selected.element.key, value) end end)
-	f.layer:SetPoint("TOPRIGHT", -40, -154)
-
 	local snap = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
 	snap:SetSize(26, 26)
-	snap:SetPoint("TOPLEFT", 16, -190)
 	local snapText = snap.Text or snap:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	snapText:ClearAllPoints()
 	snapText:SetPoint("LEFT", snap, "RIGHT", 2, 1)
@@ -405,22 +603,22 @@ function E:CreateDialog()
 	snapText:SetText(L.LAYOUT_SNAP)
 	snap:SetScript("OnShow", function(self) self:SetChecked(db().snap) end)
 	snap:SetScript("OnClick", function(self) db().snap = self:GetChecked() and true or false end)
+	f.snap = snap
 
 	local resetOne = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	resetOne:SetSize(296, 22)
-	resetOne:SetPoint("TOP", 0, -222)
+	resetOne:SetSize(336, 22)
 	resetOne:SetText(L.LAYOUT_RESET_ONE)
 	resetOne:SetScript("OnClick", function() if E.selected then E:ResetElement(E.selected.element.key) end end)
 	f.resetOne = resetOne
 
 	local reset = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	reset:SetSize(140, 22)
+	reset:SetSize(160, 22)
 	reset:SetPoint("BOTTOMLEFT", 22, 20)
 	reset:SetText(L.LAYOUT_RESET)
 	reset:SetScript("OnClick", function() E:ResetAll() end)
 
 	local done = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	done:SetSize(140, 22)
+	done:SetSize(160, 22)
 	done:SetPoint("BOTTOMRIGHT", -22, 20)
 	done:SetText(L.LAYOUT_DONE)
 	done:SetScript("OnClick", function() E:Stop() end)
@@ -429,6 +627,7 @@ function E:CreateDialog()
 	tinsert(UISpecialFrames, "SquareMapLayoutDialog")
 	f:Hide()
 	self.dialog = f
+	self.panels = {}
 	return f
 end
 
@@ -436,13 +635,29 @@ function E:UpdateDialog()
 	local f = self.dialog
 	if not f then return end
 	local box = self.selected
-	local key = box and box.element.key
-	f.selected:SetText(box and L[box.element.label] or L.LAYOUT_NONE)
-	f.scale:SetSQMValue(key and self:GetScale(key) * 100 or 100)
-	f.layer:SetSQMValue(key and self:GetLayer(key) or 0)
-	for _, widget in ipairs({ f.scale, f.layer, f.resetOne }) do
-		if widget.SetEnabled then widget:SetEnabled(key ~= nil) end
+	local el = box and box.element
+	f.selected:SetText(el and L[el.label] or L.LAYOUT_NONE)
+
+	local panel
+	for key, other in pairs(self.panels) do
+		if not el or key ~= el.key then other:Hide() end
 	end
+	if el then
+		panel = self.panels[el.key] or self:CreatePanel(el)
+		self.panels[el.key] = panel
+		panel:Show()
+		for _, refresh in ipairs(panel.refresh) do refresh() end
+	end
+
+	-- Snap and reset sit under the panel; the dialog grows with it.
+	local y = PANEL_TOP - (panel and panel.height or 0) - 6
+	f.snap:ClearAllPoints()
+	f.snap:SetPoint("TOPLEFT", f, "TOPLEFT", 16, y)
+	f.resetOne:ClearAllPoints()
+	f.resetOne:SetPoint("TOP", f, "TOP", 0, y - 34)
+	f.resetOne:SetText(el and el.fixed and L.LAYOUT_RESET_SETTINGS or L.LAYOUT_RESET_ONE)
+	if f.resetOne.SetEnabled then f.resetOne:SetEnabled(el ~= nil) end
+	f:SetHeight(-(y - 34) + 22 + 56)
 end
 
 function E:Start()
