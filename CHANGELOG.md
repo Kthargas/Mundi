@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 - 2026-11-25
+
+- New: world map improvements, built on Blizzard's own map with hooks only.
+  - Seamless zoom: at the closest zoom, one more scroll opens the zone, cave or dungeon map under the cursor. At the widest zoom, one more scroll goes up one map.
+  - Scale for the windowed world map.
+  - Player and cursor coordinates under the map.
+
 ## 1.0.6 - 2026-11-25
 
 - The click actions are back: tracking menu, calendar and world map, plus a new "SquareMap options" action. The blocked popup turned out to come from the ping listener (fixed in 1.0.5), not from these actions. The world map is not opened in combat, because the game blocks that.

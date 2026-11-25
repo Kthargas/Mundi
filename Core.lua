@@ -28,6 +28,11 @@ ns.DEFAULTS = {
 		rightClick = "TRACKING",
 		middleClick = "COLLECTOR",
 	},
+	worldmap = {
+		seamlessZoom = true,
+		scale = 1,
+		coords = true,
+	},
 	collector = {
 		enabled = true,
 		icon = "BAG",

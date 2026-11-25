@@ -27,6 +27,12 @@ own settings window.
   inside the map.
 - Works with LibDBIcon: addons that are not collected place their buttons on the square edge.
 
+### World map
+
+- Seamless zoom: scroll in past the closest zoom to open the zone, cave or dungeon map under the cursor,
+  scroll out past the widest zoom to go up one map.
+- Scale for the windowed world map; player and cursor coordinates under the map.
+
 ### Addon button collector
 - One classic minimap button collects the buttons of other addons (LibDBIcon buttons and other named
   buttons on the minimap). Map pins of Questie, HandyNotes, GatherMate and similar are left alone.
