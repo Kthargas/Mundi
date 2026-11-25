@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.1 - 2026-11-25
+
+- Fixed: "An action was blocked in combat because of taint from SquareMap - Button:SetPassThroughButtons()" from quest pins on the world map. The world map was still run from addon code in two places:
+  - The "World map" click action opened the map from addon code, so the whole map refresh ran tainted. The action is removed; settings that used it are set to "Nothing". The M key opens the map as before.
+  - Dragging the resize grip refits the map canvas from addon code. Afterwards SquareMap now offers a UI reload, after which Blizzard applies the saved size itself, untainted. The grip is disabled in combat.
+- The blocked-action message is printed only once per function and session, and says when the world map was changed from addon code in this session.
+
 ## 1.4.0 - 2026-11-25
 
 - New: layout editor for the minimap (`/sqm layout`, SquareMap > Actions > Edit layout, or as a click action on the map). Drag the mail icon, crafting orders, tracking, calendar, clock, addon compartment, instance difficulty, zoom buttons, day/night indicator, expansion summary, event button, coordinates and the addon button collector anywhere around the map.

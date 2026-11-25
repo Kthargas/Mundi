@@ -77,6 +77,7 @@ function W:OnWheel(delta)
 		local cave = atMax and x and CaveAt(mapID, x, y)
 		if cave and self.edge == "IN" then
 			self.edge = nil
+			self.tainted = true
 			map:SetMapID(cave)
 			return
 		end
@@ -85,6 +86,7 @@ function W:OnWheel(delta)
 		local atMin = target <= sc:GetScaleForMinZoom() + 0.001
 		if atMin and self.edge == "OUT" then
 			self.edge = nil
+			self.tainted = true
 			map:SetMapID(info.parentMapID)
 			return
 		end
@@ -128,6 +130,7 @@ end
 -- Only for an explicit drag of the grip: the canvas has to follow the frame live, and Blizzard does not
 -- refit it on its own. The map is refitted again in secure code the next time it opens.
 function W:ApplySize()
+	self.tainted = true
 	local map = WorldMapFrame
 	if not map or (map.IsMaximized and map:IsMaximized()) then return end
 	local width, height = TargetSize(QuestLogExtra(map))
@@ -163,9 +166,15 @@ function W:CreateGrip()
 	grip:SetScript("OnLeave", GameTooltip_Hide)
 
 	grip:SetScript("OnMouseDown", function(self, button)
+		if InCombatLockdown() then
+			UIErrorsFrame:AddMessage(ERR_NOT_IN_COMBAT or L.NOT_IN_COMBAT, 1, 0.1, 0.1)
+			return
+		end
 		if button == "RightButton" then
+			if not db().width then return end
 			db().width = nil
 			W:ApplySize()
+			W:AskReload()
 			return
 		end
 		if button ~= "LeftButton" then return end
@@ -178,15 +187,36 @@ function W:CreateGrip()
 			local width = math.floor(math.max(MIN_WIDTH, math.min(maxWidth, startWidth + x - startX)) + 0.5)
 			if width ~= db().width then
 				db().width = width
+				W.resized = true
 				W:ApplySize()
 			end
 		end)
 	end)
 	grip:SetScript("OnMouseUp", function(self)
+		if not self:GetScript("OnUpdate") then return end
 		self:SetScript("OnUpdate", nil)
+		if W.resized then W:AskReload() end
 	end)
 	self.grip = grip
 end
+
+-- The live refit while dragging runs Blizzard's map code from addon code, which taints the map until
+-- the UI is reloaded. After a reload the saved size is applied the clean way.
+function W:AskReload()
+	self.resized = nil
+	StaticPopup_Show("SQUAREMAP_WM_RELOAD")
+end
+
+StaticPopupDialogs["SQUAREMAP_WM_RELOAD"] = {
+	text = L.WM_RELOAD,
+	button1 = L.WM_RELOAD_NOW,
+	button2 = L.WM_RELOAD_LATER,
+	OnAccept = function() ReloadUI() end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
 
 function W:UpdateGrip()
 	local map = WorldMapFrame
