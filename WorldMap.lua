@@ -77,7 +77,6 @@ function W:OnWheel(delta)
 		local cave = atMax and x and CaveAt(mapID, x, y)
 		if cave and self.edge == "IN" then
 			self.edge = nil
-			self.tainted = true
 			map:SetMapID(cave)
 			return
 		end
@@ -86,7 +85,6 @@ function W:OnWheel(delta)
 		local atMin = target <= sc:GetScaleForMinZoom() + 0.001
 		if atMin and self.edge == "OUT" then
 			self.edge = nil
-			self.tainted = true
 			map:SetMapID(info.parentMapID)
 			return
 		end
@@ -130,7 +128,6 @@ end
 -- Only for an explicit drag of the grip: the canvas has to follow the frame live, and Blizzard does not
 -- refit it on its own. The map is refitted again in secure code the next time it opens.
 function W:ApplySize()
-	self.tainted = true
 	local map = WorldMapFrame
 	if not map or (map.IsMaximized and map:IsMaximized()) then return end
 	local width, height = TargetSize(QuestLogExtra(map))

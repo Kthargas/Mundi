@@ -16,7 +16,7 @@ still moves and scales the minimap.
 
 No custom textures are shipped. The frame is drawn from Blizzard's own nine-slice art (the same pieces used by
 dialogs, tooltips and panels), the windows use Blizzard's frame templates and the options live in the game's
-own settings window (the action buttons on a separate "Actions" page under SquareMap).
+own settings window (Esc > Options > AddOns > SquareMap, with the pages Header, Addon buttons, World map and Actions).
 
 ### Minimap
 - Square map, size 140 to 400 pixels.
@@ -67,12 +67,13 @@ Copy this folder into `World of Warcraft\_forever_\Interface\AddOns\` and name i
 | Command | What it does |
 | --- | --- |
 | `/sqm` | Open the options (Esc > Options > AddOns > SquareMap) |
+| `/sqm help` | List all commands |
+| `/sqm layout` | Open the layout editor |
 | `/sqm buttons` | Show or hide the addon button window |
 | `/sqm manage` | Choose which addon buttons are collected |
 | `/sqm scan` | Search for addon buttons again |
 | `/sqm add <FrameName>` | Collect a button by its frame name |
-| `/sqm atlas` | List which Blizzard art pieces this client knows (for bug reports) |
-| `/sqm reset` | Reset all settings |
+| `/sqm reset` | Reset all settings (asks first) |
 
 ## Languages
 

@@ -322,7 +322,7 @@ local function SetHeaderTexture(texture)
 	end
 end
 
--- Bare icons (no plate or frame), first one that exists in this client wins.
+-- Today's day of the month, for the calendar icon.
 local function CalendarDay()
 	local day = _G.GameTimeFrame and _G.GameTimeFrame.calendarDay
 	if not day and C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime then
@@ -356,7 +356,6 @@ local ICONS = {
 		return { file = texture, coords = { 0.08, 0.92, 0.08, 0.92 }, round = true, inset = 1 }
 	end,
 }
-M.FIELD_ATLASES = { "ui-hud-minimap-tracking-up", "common-search-magnifyingglass", "ui-hud-calendar-1-up" }
 
 local function SetIcon(texture, spec)
 	texture:SetTexCoord(0, 1, 0, 1)
@@ -1063,30 +1062,4 @@ end
 -- Other addons (LibDBIcon and friends) ask this to place their buttons on the edge.
 function GetMinimapShape()
 	return "SQUARE"
-end
-
----------------------------------------------------------------------------
--- Diagnostics: which Blizzard art does this client know?
----------------------------------------------------------------------------
-
-M.ATLAS_CHECK = {
-	"UI-Frame-DiamondMetal-CornerTopLeft", "_UI-Frame-DiamondMetal-EdgeTop",
-	"Tooltip-NineSlice-CornerTopLeft", "_Tooltip-NineSlice-EdgeTop",
-	"UI-Frame-GenericMetal-Corner", "_UI-Frame-GenericMetal-EdgeTop",
-	"UI-Frame-SimpleMetal-CornerTopLeft", "_UI-Frame-SimpleMetal-EdgeTop",
-	"ui-hud-minimap-zoom-in", "ui-hud-minimap-zoom-out",
-	"ui-hud-minimap-addon-indicator", "ui-hud-minimap-tracking-button",
-	"UI-HUD-Minimap-Frame-Cycle", "UI-HUD-Minimap-DayCycle",
-	"ui-hud-minimap-tracking-up", "common-search-magnifyingglass", "ui-hud-calendar-1-up",
-}
-
-function M:PrintAtlasReport()
-	for _, name in ipairs(self.ATLAS_CHECK) do
-		local info = C_Texture.GetAtlasInfo(name)
-		if info then
-			ns.Print(("|cff20ff20%s|r %s (%dx%d)"):format(L.ATLAS_OK, name, info.width or 0, info.height or 0))
-		else
-			ns.Print(("|cffff2020%s|r %s"):format(L.ATLAS_MISSING, name))
-		end
-	end
 end
