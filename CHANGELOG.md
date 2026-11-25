@@ -3,6 +3,7 @@
 ## 1.0.3 - 2026-11-25
 
 - Diagnostics: when the game blocks an action from SquareMap, the blocked function is named in chat.
+- Diagnostics: the message also lists the last SquareMap calls before the block.
 
 ## 1.0.2 - 2026-11-25
 

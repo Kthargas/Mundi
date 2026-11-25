@@ -115,6 +115,40 @@ function ns:ResetSettings()
 	if ns.options and ns.options.Refresh then ns.options:Refresh() end
 end
 
+-- Diagnostics: remember the last SquareMap calls, so a blocked action can be traced back to them.
+local trace = {}
+function ns.Trace(label)
+	local now = GetTime()
+	local last = trace[#trace]
+	if last and last.label == label then
+		last.count, last.time = last.count + 1, now
+		return
+	end
+	trace[#trace + 1] = { label = label, count = 1, time = now }
+	if #trace > 8 then table.remove(trace, 1) end
+end
+
+local function Instrument(name, tbl)
+	if type(tbl) ~= "table" then return end
+	for key, fn in pairs(tbl) do
+		if type(fn) == "function" then
+			local label = name .. ":" .. tostring(key)
+			tbl[key] = function(...)
+				ns.Trace(label)
+				return fn(...)
+			end
+		end
+	end
+end
+
+function ns.PrintTrace()
+	local now = GetTime()
+	for i = #trace, math.max(1, #trace - 5), -1 do
+		local t = trace[i]
+		ns.Print(L.TRACE_LINE:format(t.label, t.count, now - t.time))
+	end
+end
+
 local events = CreateFrame("Frame")
 ns.events = events
 events:RegisterEvent("ADDON_LOADED")
@@ -127,10 +161,13 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 	if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
 		if arg1 == ADDON then
 			ns.Print(L.BLOCKED:format(event, tostring(arg2), InCombatLockdown() and L.YES or L.NO))
+			ns.PrintTrace()
 		end
 		return
 	end
 	if event == "ADDON_LOADED" and arg1 == ADDON then
+		for _, mod in ipairs(ns.modules) do Instrument(mod.name, mod) end
+		Instrument("options", ns.options)
 		SquareMapDB = SquareMapDB or {}
 		CopyDefaults(ns.DEFAULTS, SquareMapDB)
 		ns.db = SquareMapDB
