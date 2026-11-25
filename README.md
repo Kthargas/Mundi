@@ -4,7 +4,7 @@
 
 <h1 align="center">Mundi</h1>
 
-<p align="center"><em>The Map, but squared</em> · formerly SquareMap</p>
+<p align="center"><em>The Map, but squared</em></p>
 
 <p align="center">
   A square minimap for <strong>World of Warcraft: Forever</strong> that looks like Blizzard made it,<br>
@@ -38,6 +38,7 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 - Caves (opt-in): scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return. Switching maps from an addon taints the world map, so this is off by default; inside a cave Blizzard's map opens on the cave anyway.
 - Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets). After resizing, Mundi offers a UI reload so Blizzard applies the size itself without taint.
 - Player and cursor coordinates under the map.
+- Fade the map while moving (Blizzard's setting, reachable from Mundi's options).
 - Level ranges: next to the zone name under the cursor and in the middle of every zone on a continent map, coloured by your level like quests. Both can be switched off.
 
 ### Addon button collector
@@ -59,6 +60,9 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
 - Right and middle click on the map: tracking menu, calendar, addon button window, layout editor, options or just the Blizzard ping.
+- Header text fields with tooltips and clicks: gold of all your characters and this session's gain, latency and addon memory, durability per item (click: character), free slots per bag (click: bags), local and server time (click: calendar).
+- Instance info tooltip with your saved instances (bosses killed, time to reset).
+- Own settings per character (optional).
 - Header: one bar with a square field at each end and three text fields in between. Each field holds one function (tracking, calendar, day/night, addon compartment or the Mundi addon button) as a bare icon that is part of the header; everything else stays a normal, movable element. The text fields show zone name, clock, local or server time, gold, latency, frame rate, coordinates, durability or free bag slots. The header background can be hidden.
 - Layout editor (`/mundi layout`): drag every minimap button and display (mail, tracking, calendar, clock, zoom, ...) to any spot around the map, change its size (mouse wheel) and layer (Shift + mouse wheel), and change every setting of the map, header and other elements right there, with Blizzard's Edit Mode look.
 - Optionally hide Blizzard's addon compartment, which mostly duplicates the collected buttons.
@@ -68,13 +72,6 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 
 Copy this folder into `World of Warcraft\_forever_\Interface\AddOns\` and name it `Mundi`
 (the folder name has to match `Mundi.toc`).
-
-### Coming from SquareMap
-
-Mundi is the new name of SquareMap. Delete the old `SquareMap` folder from `Interface\AddOns` (if it is still
-there, Mundi switches it off and asks for a reload). To keep your settings, rename
-`WTF\Account\<ACCOUNT>\SavedVariables\SquareMap.lua` to `Mundi.lua` before you log in; Mundi takes them over.
-Key bindings have to be set again, and the command is now `/mundi`.
 
 ## Commands
 

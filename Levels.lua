@@ -1,5 +1,4 @@
 local ADDON, ns = ...
-local L = ns.L
 
 -- Level ranges on the world map:
 -- * next to the zone name that Blizzard shows while the cursor is over a zone of a continent map,

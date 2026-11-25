@@ -584,7 +584,7 @@ local function Clock(wantAMPM)
 end
 
 local function Colored(value, good, bad, text)
-	local r, g = 1, 1
+	local r, g
 	if value <= good then r, g = 0.3, 1 elseif value >= bad then r, g = 1, 0.3 else r, g = 1, 0.82 end
 	return ("|cff%02x%02x%02x%s|r"):format(math.floor(r * 255), math.floor(g * 255), 76, text)
 end
@@ -645,8 +645,174 @@ M.INFO = {
 	end },
 	{ key = "NONE", label = L.INFO_NONE },
 }
+-- Tooltips and clicks of the text fields, in the style of Blizzard's own micro menu tooltips.
+local GOLD = NORMAL_FONT_COLOR or { r = 1, g = 0.82, b = 0 }
+local WHITE = HIGHLIGHT_FONT_COLOR or { r = 1, g = 1, b = 1 }
+
+local function Hint(tt, text)
+	tt:AddLine(" ")
+	tt:AddLine(text, 0.5, 0.85, 1)
+end
+
+local function Money(value)
+	if GetMoneyString then return GetMoneyString(value, true) end
+	return tostring(math.floor(value / 10000)) .. "g"
+end
+
+local function OpenBags()
+	if ToggleAllBags then ToggleAllBags() end
+end
+
+local function Performance(tt)
+	local down, up, home, world = GetNetStats()
+	tt:AddDoubleLine(L.TT_LATENCY_HOME, L.INFO_MS:format(home or 0), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	tt:AddDoubleLine(L.TT_LATENCY_WORLD, L.INFO_MS:format(world or 0), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	tt:AddDoubleLine(L.TT_BANDWIDTH, ("%.2f / %.2f KB/s"):format(down or 0, up or 0), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	tt:AddDoubleLine(L.INFO_FPS, L.INFO_FPS_VALUE:format(math.floor(GetFramerate() + 0.5)), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	-- the addons using the most memory
+	if UpdateAddOnMemoryUsage and GetAddOnMemoryUsage and C_AddOns then
+		UpdateAddOnMemoryUsage()
+		local list, total = {}, 0
+		for i = 1, C_AddOns.GetNumAddOns() do
+			if C_AddOns.IsAddOnLoaded(i) then
+				local kb = GetAddOnMemoryUsage(i)
+				local _, title = C_AddOns.GetAddOnInfo(i)
+				total = total + kb
+				list[#list + 1] = { title = title, kb = kb }
+			end
+		end
+		table.sort(list, function(a, b) return a.kb > b.kb end)
+		local function Size(kb)
+			if kb >= 1024 then return ("%.1f MB"):format(kb / 1024) end
+			return ("%.0f KB"):format(kb)
+		end
+		tt:AddLine(" ")
+		tt:AddDoubleLine(L.TT_ADDON_MEMORY, Size(total), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+		for i = 1, math.min(8, #list) do
+			tt:AddDoubleLine(list[i].title, Size(list[i].kb), WHITE.r, WHITE.g, WHITE.b, WHITE.r, WHITE.g, WHITE.b)
+		end
+	end
+end
+
+local function Times(tt)
+	local localTime = GameTime_GetLocalTime and GameTime_GetLocalTime(Clock(true)) or date("%H:%M")
+	local serverTime = GameTime_GetGameTime and GameTime_GetGameTime(Clock(true)) or ""
+	tt:AddDoubleLine(L.INFO_LOCALTIME, localTime, GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	tt:AddDoubleLine(L.INFO_SERVERTIME, serverTime, GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+	Hint(tt, L.TT_CLICK_CALENDAR)
+end
+
+local EXTRA = {
+	LOCALTIME = { tip = Times, click = function() if ToggleCalendar then ToggleCalendar() end end },
+	SERVERTIME = { tip = Times, click = function() if ToggleCalendar then ToggleCalendar() end end },
+	MONEY = {
+		tip = function(tt)
+			local chars = ns.root and ns.root.gold or {}
+			local list, total = {}, 0
+			for key, c in pairs(chars) do
+				list[#list + 1] = { key = key, money = c.money or 0, class = c.class }
+				total = total + (c.money or 0)
+			end
+			table.sort(list, function(a, b) return a.money > b.money end)
+			for _, c in ipairs(list) do
+				local color = c.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[c.class] or WHITE
+				local name = c.key:gsub("%-.*$", "")
+				tt:AddDoubleLine(name, Money(c.money), color.r, color.g, color.b, WHITE.r, WHITE.g, WHITE.b)
+			end
+			if #list > 1 then
+				tt:AddDoubleLine(L.TT_TOTAL, Money(total), GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+			end
+			local diff = GetMoney() - (ns.sessionMoney or GetMoney())
+			if diff ~= 0 then
+				local text = (diff > 0 and "|cff20ff20+|r" or "|cffff2020-|r") .. Money(math.abs(diff))
+				tt:AddDoubleLine(L.TT_SESSION, text, GOLD.r, GOLD.g, GOLD.b, WHITE.r, WHITE.g, WHITE.b)
+			end
+			Hint(tt, L.TT_CLICK_BAGS)
+		end,
+		click = OpenBags,
+	},
+	PING = { tip = Performance },
+	FPS = { tip = Performance },
+	COORDS = {
+		tip = function(tt)
+			tt:AddLine(GetZoneText() or "", WHITE.r, WHITE.g, WHITE.b)
+			local sub = GetSubZoneText()
+			if sub and sub ~= "" and sub ~= GetZoneText() then tt:AddLine(sub, GOLD.r, GOLD.g, GOLD.b) end
+		end,
+	},
+	DURABILITY = {
+		tip = function(tt)
+			for slot = 1, 18 do
+				local cur, max = GetInventoryItemDurability(slot)
+				if cur and max and max > 0 then
+					local link = GetInventoryItemLink("player", slot)
+					local name = link and (GetItemInfo(link)) or ""
+					local pct = math.floor(cur / max * 100 + 0.5)
+					tt:AddDoubleLine(name, Colored(-pct, -50, -20, L.INFO_DURABILITY_VALUE:format(pct)),
+						WHITE.r, WHITE.g, WHITE.b, WHITE.r, WHITE.g, WHITE.b)
+				end
+			end
+			Hint(tt, L.TT_CLICK_CHARACTER)
+		end,
+		click = function()
+			if InCombatLockdown() then return end
+			if ToggleCharacter then ToggleCharacter("PaperDollFrame") end
+		end,
+	},
+	BAGS = {
+		tip = function(tt)
+			local bags = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4
+			for bag = 0, bags do
+				local size = C_Container and C_Container.GetContainerNumSlots(bag) or 0
+				if size > 0 then
+					local free = C_Container.GetContainerNumFreeSlots(bag) or 0
+					local name = bag == 0 and (BACKPACK_TOOLTIP or L.INFO_BAGS) or (C_Container.GetBagName and C_Container.GetBagName(bag)) or ""
+					tt:AddDoubleLine(name, L.TT_FREE:format(free, size), WHITE.r, WHITE.g, WHITE.b, WHITE.r, WHITE.g, WHITE.b)
+				end
+			end
+			Hint(tt, L.TT_CLICK_BAGS)
+		end,
+		click = OpenBags,
+	},
+}
+for _, info in ipairs(M.INFO) do
+	local extra = EXTRA[info.key]
+	if extra then info.tip, info.click = extra.tip, extra.click end
+end
+
 local INFO = {}
 for _, info in ipairs(M.INFO) do INFO[info.key] = info end
+
+-- Invisible button over a text field for its tooltip and click.
+function M:InfoHit(pos, text, key)
+	self.infoHit = self.infoHit or {}
+	local hit = self.infoHit[pos]
+	if not hit then
+		hit = CreateFrame("Button", nil, text:GetParent())
+		hit:RegisterForClicks("LeftButtonUp")
+		hit:SetScript("OnEnter", function(b)
+			local info = INFO[b.key]
+			if not (info and info.tip) then return end
+			GameTooltip:SetOwner(b, "ANCHOR_BOTTOM")
+			GameTooltip_SetTitle(GameTooltip, info.label)
+			info.tip(GameTooltip)
+			GameTooltip:Show()
+		end)
+		hit:SetScript("OnLeave", GameTooltip_Hide)
+		hit:SetScript("OnClick", function(b)
+			local info = INFO[b.key]
+			if info and info.click then info.click() end
+		end)
+		self.infoHit[pos] = hit
+	end
+	hit.key = key
+	hit:SetFrameLevel(text:GetParent():GetFrameLevel() + 5)
+	hit:ClearAllPoints()
+	hit:SetPoint("TOPLEFT", text, "TOPLEFT", -2, 3)
+	hit:SetPoint("BOTTOMRIGHT", text, "BOTTOMRIGHT", 2, -3)
+	hit:SetShown(INFO[key] and INFO[key].tip and true or false)
+	return hit
+end
 
 local POSITIONS = { "LEFT", "CENTER", "RIGHT" }
 local FIELD_OF = { LEFT = "infoLeft", CENTER = "infoCenter", RIGHT = "infoRight" }
@@ -688,7 +854,12 @@ function M:LayoutInfo()
 			text:Show()
 			region, width = text, text:GetStringWidth() + 2
 		end
-		if self.infoText[pos] and region ~= self.infoText[pos] then self.infoText[pos]:Hide() end
+		if self.infoText[pos] and region ~= self.infoText[pos] then
+			self.infoText[pos]:Hide()
+			if self.infoHit and self.infoHit[pos] then self.infoHit[pos]:Hide() end
+		elseif region and region == self.infoText[pos] then
+			self:InfoHit(pos, region, key)
+		end
 		regions[pos], widths[pos] = region, width
 		if region then count = count + 1 end
 	end
