@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.2 - 2026-11-25
+
+- Header fields without a frame: only the bare icon sits at each end of the header bar. Function, clicks and tooltips stay the same.
+
 ## 1.8.1 - 2026-11-25
 
 - Header fields have a real frame now: a small version of the map border style (thin black lines with "Thin line") instead of the gold divider.
