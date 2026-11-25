@@ -8,6 +8,7 @@ local C = {}
 ns:RegisterModule("collector", C)
 
 C.ICONS = {
+	{ key = "LOGO", label = L.ICON_LOGO, texture = ns.ICON, logo = true },
 	{ key = "BAG", label = L.ICON_BAG, texture = "Interface\\Icons\\INV_Misc_Bag_10" },
 	{ key = "GEAR", label = L.ICON_GEAR, texture = "Interface\\Icons\\INV_Misc_Gear_01" },
 	{ key = "SCROLL", label = L.ICON_SCROLL, texture = "Interface\\Icons\\INV_Scroll_03" },
@@ -37,7 +38,7 @@ local function Nop() end
 
 -- Frames on the minimap that are map pins or Blizzard parts, never addon buttons.
 local IGNORE_PATTERNS = {
-	"^SquareMap", "^HybridMinimap", "^MinimapBackdrop", "^MinimapCompass", "^MiniMapMail",
+	"^Mundi", "^HybridMinimap", "^MinimapBackdrop", "^MinimapCompass", "^MiniMapMail",
 	"^GameTimeFrame", "^TimeManager", "^AddonCompartment", "^ExpansionLandingPage", "^QueueStatus",
 	"^Questie", "^HandyNotes", "^GatherMate", "^Gatherer", "^TomTom", "^Routes", "^GatherNote",
 	"^CTMapMod", "^NovaWorldBuffs", "^Pin", "Pin%d*$", "Pin_", "POI", "Blip", "^Lib_GPI",
@@ -418,7 +419,7 @@ end
 
 function C:CreateWindows()
 	-- Window style: Blizzard's ButtonFrameTemplate without portrait.
-	local panel = CreateFrame("Frame", "SquareMapCollectorPanel", UIParent, "ButtonFrameTemplate")
+	local panel = CreateFrame("Frame", "MundiCollectorPanel", UIParent, "ButtonFrameTemplate")
 	if ButtonFrameTemplate_HideAttic then ButtonFrameTemplate_HideAttic(panel) end
 	if ButtonFrameTemplate_HideButtonBar then ButtonFrameTemplate_HideButtonBar(panel) end
 	ButtonFrameTemplate_HidePortrait(panel)
@@ -448,17 +449,17 @@ function C:CreateWindows()
 	panel.Gear = gear
 
 	-- Compact style: a tooltip border.
-	local compact = CreateFrame("Frame", "SquareMapCollectorCompact", UIParent, "TooltipBackdropTemplate")
+	local compact = CreateFrame("Frame", "MundiCollectorCompact", UIParent, "TooltipBackdropTemplate")
 	compact:SetFrameStrata("DIALOG")
 	compact:SetToplevel(true)
 	compact:SetClampedToScreen(true)
 	compact:Hide()
 	MakeMovable(compact)
 
-	tinsert(UISpecialFrames, "SquareMapCollectorPanel")
-	tinsert(UISpecialFrames, "SquareMapCollectorCompact")
+	tinsert(UISpecialFrames, "MundiCollectorPanel")
+	tinsert(UISpecialFrames, "MundiCollectorCompact")
 
-	local content = CreateFrame("Frame", "SquareMapCollectorContent", panel)
+	local content = CreateFrame("Frame", "MundiCollectorContent", panel)
 	content:SetSize(1, 1)
 	self.content = content
 	self.panel, self.compact = panel, compact
@@ -761,7 +762,7 @@ local function PlaceButton(button)
 end
 
 function C:CreateButton()
-	local b = CreateFrame("Button", "SquareMapCollectorButton", Minimap)
+	local b = CreateFrame("Button", "MundiCollectorButton", Minimap)
 	b:SetSize(31, 31)
 	b:SetFrameStrata("MEDIUM")
 	b:SetFrameLevel(8)
@@ -789,6 +790,7 @@ function C:CreateButton()
 	mask:SetAllPoints(icon)
 	icon:AddMaskTexture(mask)
 	b.icon = icon
+	b.iconMask = mask
 
 	local count = b:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
 	count:SetPoint("BOTTOMRIGHT", -3, 4)
@@ -862,7 +864,17 @@ function C:UpdateButton()
 		if info.key == cfg.icon then iconInfo = info end
 	end
 	b.icon:SetTexture(iconInfo.texture)
-	b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+	if iconInfo.logo then
+		-- The logo has its own frame: whole picture, square, a bit larger (like Fray's button).
+		b.icon:SetTexCoord(0, 1, 0, 1)
+		b.icon:SetSize(20, 20)
+		b.icon:RemoveMaskTexture(b.iconMask)
+	else
+		b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		b.icon:SetSize(18, 18)
+		b.icon:RemoveMaskTexture(b.iconMask)
+		b.icon:AddMaskTexture(b.iconMask)
+	end
 	local n = self:Count()
 	b.count:SetText(n > 0 and n or "")
 	b.count:SetShown(cfg.showCount)
@@ -875,7 +887,7 @@ end
 ---------------------------------------------------------------------------
 
 function C:CreateManager()
-	local f = CreateFrame("Frame", "SquareMapManager", UIParent, "ButtonFrameTemplate")
+	local f = CreateFrame("Frame", "MundiManager", UIParent, "ButtonFrameTemplate")
 	if ButtonFrameTemplate_HideAttic then ButtonFrameTemplate_HideAttic(f) end
 	ButtonFrameTemplate_HidePortrait(f)
 	f:SetTitle(L.MANAGE_TITLE)
@@ -890,7 +902,7 @@ function C:CreateManager()
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", f.StopMovingOrSizing)
 	f:Hide()
-	tinsert(UISpecialFrames, "SquareMapManager")
+	tinsert(UISpecialFrames, "MundiManager")
 
 	local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	hint:SetPoint("TOPLEFT", f.Inset, "TOPLEFT", 8, -8)
@@ -1001,7 +1013,7 @@ function C:Init()
 	self:CreateButton()
 	self.ready = true
 
-	EventRegistry:RegisterCallback("SquareMap.LayoutChanged", function()
+	EventRegistry:RegisterCallback("Mundi.LayoutChanged", function()
 		if self.button then PlaceButton(self.button) end
 		for _, entry in ipairs(ordered) do
 			if not entry.collected and entry.source == "LDB" then

@@ -83,7 +83,7 @@ end
 ---------------------------------------------------------------------------
 
 function M:CreateBorder()
-	local border = CreateFrame("Frame", "SquareMapBorder", Minimap)
+	local border = CreateFrame("Frame", "MundiBorder", Minimap)
 	border:SetFrameLevel(Minimap:GetFrameLevel() + 2)
 	border:EnableMouse(false)
 	self.border = border
@@ -158,7 +158,7 @@ local function RefreshMinimapRender()
 end
 
 -- "Rotate minimap" does not work with a square map: the game turns the terrain as a square, so the
--- corners stay empty. SquareMap keeps north up and switches the Blizzard setting back off.
+-- corners stay empty. Mundi keeps north up and switches the Blizzard setting back off.
 function M:KeepNorthUp()
 	if not (GetCVarBool and GetCVarBool("rotateMinimap")) then return end
 	SetCVar("rotateMinimap", "0")
@@ -349,11 +349,15 @@ local ICONS = {
 	diel = function() return { atlas = { DayIcon() }, crop = 0.18, round = true } end,
 	collector = function()
 		local C = ns.collector
-		local texture = C and C.ICONS and C.ICONS[1] and C.ICONS[1].texture
+		local icon = C and C.ICONS and C.ICONS[1]
 		for _, info in ipairs(C and C.ICONS or {}) do
-			if info.key == ns.db.collector.icon then texture = info.texture end
+			if info.key == ns.db.collector.icon then icon = info end
 		end
-		return { file = texture, coords = { 0.08, 0.92, 0.08, 0.92 }, round = true, inset = 1 }
+		if icon and icon.logo then
+			-- The logo without its frame: only the letter on its blue ground, square like the field.
+			return { file = icon.texture, coords = { 0.125, 0.875, 0.125, 0.875 }, inset = 1 }
+		end
+		return { file = icon and icon.texture, coords = { 0.08, 0.92, 0.08, 0.92 }, round = true, inset = 1 }
 	end,
 }
 
@@ -968,7 +972,7 @@ function M:Apply()
 	self:ApplyBackdropButtons()
 	if ns.layout and ns.db.layout then ns.layout:ApplyPositions() end
 	self:ApplyClusterSize()
-	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
+	EventRegistry:TriggerEvent("Mundi.LayoutChanged")
 end
 
 -- Blizzard re-applies its own round setup in a few places; put ours back afterwards.

@@ -1,0 +1,5 @@
+package-as: Mundi
+
+ignore:
+  - docs
+  - CHANGELOG.md

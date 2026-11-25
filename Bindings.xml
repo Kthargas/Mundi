@@ -1,8 +1,8 @@
 <Bindings>
-	<Binding name="SQUAREMAP_TOGGLE" header="SQUAREMAP" category="ADDONS">
-		SquareMap_ToggleCollector()
+	<Binding name="MUNDI_TOGGLE" header="MUNDI" category="ADDONS">
+		Mundi_ToggleCollector()
 	</Binding>
-	<Binding name="SQUAREMAP_OPTIONS" category="ADDONS">
-		SquareMap_OpenOptions()
+	<Binding name="MUNDI_OPTIONS" category="ADDONS">
+		Mundi_OpenOptions()
 	</Binding>
 </Bindings>

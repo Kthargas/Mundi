@@ -251,7 +251,7 @@ function E:Init()
 	-- No MINIMAP_PING listener: in this client the ping callback is reserved for Blizzard code, and
 	-- registering it from an addon is a forbidden action (the "blocked from an action" popup).
 
-	EventRegistry:RegisterCallback("SquareMap.LayoutChanged", function() E:UpdateInstanceInfo() end, E)
+	EventRegistry:RegisterCallback("Mundi.LayoutChanged", function() E:UpdateInstanceInfo() end, E)
 	self.ready = true
 end
 
