@@ -141,6 +141,8 @@ local function HeaderFrames()
 		_G.GameTimeFrame,
 		_G.AddonCompartmentFrame,
 		cluster.InstanceDifficulty,
+		ns.map and ns.map:IsDocked("diel") and cluster.DielFrame or false,
+		ns.map and ns.map:IsDocked("collector") and ns.collector and ns.collector.button or false,
 	}
 end
 

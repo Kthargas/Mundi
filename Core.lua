@@ -53,6 +53,13 @@ ns.DEFAULTS = {
 		order = {},
 		manual = {},
 	},
+	-- Header slots: buttons docked left or right inside the header bar, the rest placed freely.
+	header = {
+		background = true,
+		dock = { tracking = "LEFT", calendar = "RIGHT", compartment = "RIGHT", diel = "RIGHT", collector = "FREE" },
+		order = { tracking = 1, calendar = 1, compartment = 2, diel = 3, collector = 4 },
+		buttonBg = { tracking = true, compartment = true, diel = true, collector = true },
+	},
 	layout = {
 		snap = true,
 		positions = {},
@@ -201,6 +208,14 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		-- 1.4.1: opening the world map from addon code tainted it (blocked map pins in combat).
 		for _, field in ipairs({ "rightClick", "middleClick" }) do
 			if ns.db.map[field] == "WORLDMAP" then ns.db.map[field] = "NONE" end
+		end
+		-- 1.7.0: tracking, calendar, compartment and day/night sit in header slots. Elements already
+		-- moved with the layout editor stay where they were.
+		if not ns.db.header.migrated then
+			for key in pairs(ns.db.header.dock) do
+				if ns.db.layout.positions[key] then ns.db.header.dock[key] = "FREE" end
+			end
+			ns.db.header.migrated = true
 		end
 		if not ns.db.worldmap.cavesOptIn then
 			ns.db.worldmap.caves = false

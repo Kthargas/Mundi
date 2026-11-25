@@ -792,11 +792,13 @@ function C:CreateButton()
 	overlay:SetSize(50, 50)
 	overlay:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 	overlay:SetPoint("TOPLEFT")
+	b.border = overlay
 
 	local background = b:CreateTexture(nil, "BACKGROUND")
 	background:SetSize(24, 24)
 	background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
 	background:SetPoint("CENTER")
+	b.background = background
 
 	local icon = b:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(18, 18)
@@ -843,8 +845,12 @@ function C:CreateButton()
 	b:SetScript("OnLeave", GameTooltip_Hide)
 	b:SetScript("OnDragStart", function(self)
 		self:LockHighlight()
-		-- Dragging the button along the map edge replaces a spot from the layout editor.
+		-- Dragging the button along the map edge replaces a spot from the layout editor or the header slot.
 		if ns.db.layout then ns.db.layout.positions.collector = nil end
+		if ns.map and ns.map:IsDocked("collector") then
+			ns.db.header.dock.collector = "FREE"
+			ns.map:Reapply()
+		end
 		self:SetScript("OnUpdate", function()
 			local mx, my = Minimap:GetCenter()
 			local scale = Minimap:GetEffectiveScale()
