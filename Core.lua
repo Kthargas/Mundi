@@ -29,7 +29,7 @@ ns.DEFAULTS = {
 		middleClick = "COLLECTOR",
 	},
 	worldmap = {
-		caves = true,
+		caves = false,
 		width = nil,
 		coords = true,
 	},
@@ -180,6 +180,12 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		if not ns.db.map.clicksRestored then
 			if ns.db.map.rightClick == "PING" then ns.db.map.rightClick = "TRACKING" end
 			ns.db.map.clicksRestored = true
+		end
+		-- 1.3.1: switching to cave maps uses Blizzard's SetMapID from addon code, which taints the map
+		-- (map pin sharing got blocked). It is opt-in now; turn it off once for existing settings.
+		if not ns.db.worldmap.cavesOptIn then
+			ns.db.worldmap.caves = false
+			ns.db.worldmap.cavesOptIn = true
 		end
 		if ns.options and ns.options.Register then
 			local ok, err = pcall(ns.options.Register, ns.options)

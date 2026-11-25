@@ -29,7 +29,7 @@ own settings window.
 
 ### World map
 
-- Caves: scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return; inside a cave the map opens on the cave.
+- Caves (opt-in): scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return. Switching maps from an addon taints the world map, so this is off by default; inside a cave Blizzard's map opens on the cave anyway.
 - Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets).
 - Player and cursor coordinates under the map.
 
