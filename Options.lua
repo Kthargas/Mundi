@@ -141,6 +141,13 @@ function O:BuildMap(category, layout)
 	local actions = ns.extras and ns.extras.ACTIONS or {}
 	self:Dropdown(category, "map", "rightClick", L.RIGHT_CLICK, nil, actions)
 	self:Dropdown(category, "map", "middleClick", L.MIDDLE_CLICK, nil, actions)
+
+	Header(layout, L.SECTION_PROFILE)
+	local own = Settings.RegisterProxySetting(category, "MUNDI_CHAR_OWN", Settings.VarType.Boolean, L.OWN_PROFILE, false,
+		function() return ns.char.own and true or false end,
+		function(value) ns.SetOwnProfile(value) end)
+	self.settings[#self.settings + 1] = own
+	Settings.CreateCheckbox(category, own, L.OWN_PROFILE_TT)
 end
 
 function O:BuildHeader(category, layout)
@@ -198,6 +205,9 @@ function O:BuildWorldMap(category, layout)
 	Header(layout, L.SECTION_WORLDMAP)
 	self:Checkbox(category, "worldmap", "coords", L.WM_COORDS, L.WM_COORDS_TT)
 	self:Checkbox(category, "worldmap", "caves", L.WM_CAVES, L.WM_CAVES_TT)
+	self:Checkbox(category, "worldmap", "levelHover", L.WM_LEVEL_HOVER, L.WM_LEVEL_HOVER_TT)
+	self:Checkbox(category, "worldmap", "levelMap", L.WM_LEVEL_MAP, L.WM_LEVEL_MAP_TT)
+	self:CVarCheckbox(category, "mapFade", "MUNDI_CVAR_MAPFADE", L.WM_FADE, L.WM_FADE_TT)
 end
 
 -- Actions page: same look as Fray's (title, divider, sections with a label, a button and a note per row).

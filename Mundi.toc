@@ -1,15 +1,15 @@
 ## Interface: 16001
 ## Title: Mundi |cff9d9d9d- The Map, but squared|r
-## Notes: Square, Blizzard-styled minimap and world map tweaks for WoW Forever, with an addon button collector. Formerly SquareMap.
-## Notes-deDE: Quadratische Minimap und Weltkarten-Verbesserungen im Blizzard-Stil für WoW Forever, mit Sammel-Button für Addon-Buttons. Früher SquareMap.
+## Notes: Square, Blizzard-styled minimap and world map tweaks for WoW Forever, with an addon button collector.
+## Notes-deDE: Quadratische Minimap und Weltkarten-Verbesserungen im Blizzard-Stil für WoW Forever, mit Sammel-Button für Addon-Buttons.
 ## Author: Kthargas
-## Version: 2.0.0
+## Version: 1.0.0
 ## IconTexture: Interface\AddOns\Mundi\Textures\Icon
 ## SavedVariables: MundiDB, SquareMapDB
 ## AddonCompartmentFunc: Mundi_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Mundi_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Mundi_OnAddonCompartmentLeave
-## X-Website: https://github.com/Kthargas/squaremap
+## X-Website: https://github.com/Kthargas/mundi
 ## X-License: MIT
 
 Locales.lua
@@ -19,4 +19,5 @@ Extras.lua
 Collector.lua
 Layout.lua
 WorldMap.lua
+Levels.lua
 Options.lua

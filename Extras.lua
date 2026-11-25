@@ -27,18 +27,45 @@ function E:CreateInstanceInfo()
 	diff:SetPoint("TOPLEFT", size, "BOTTOMLEFT", 0, -1)
 	f.size, f.diff = size, diff
 	f:SetScript("OnEnter", function(self)
-		local name, instanceType, _, difficultyName, maxPlayers = GetInstanceInfo()
+		local name, _, _, difficultyName, maxPlayers = GetInstanceInfo()
 		GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
 		GameTooltip_SetTitle(GameTooltip, name)
 		if difficultyName and difficultyName ~= "" then GameTooltip:AddLine(difficultyName, 1, 1, 1) end
 		if maxPlayers and maxPlayers > 0 then
 			GameTooltip:AddLine(L.MAX_PLAYERS:format(maxPlayers), 1, 1, 1)
 		end
+		E:AddLockouts(GameTooltip)
 		GameTooltip:Show()
 	end)
 	f:SetScript("OnLeave", GameTooltip_Hide)
 	f:Hide()
 	self.instance = f
+end
+
+-- Saved instances (lockouts): name, difficulty, bosses killed and time to reset.
+function E:AddLockouts(tt)
+	if not (GetNumSavedInstances and GetSavedInstanceInfo) then return end
+	local lines = {}
+	for i = 1, GetNumSavedInstances() do
+		local name, _, reset, _, locked, extended, _, _, _, difficultyName, numEncounters, encounterProgress = GetSavedInstanceInfo(i)
+		if name and (locked or extended) then
+			local left = difficultyName and difficultyName ~= "" and ("%s (%s)"):format(name, difficultyName) or name
+			local right = ""
+			if numEncounters and numEncounters > 0 then right = ("%d/%d"):format(encounterProgress or 0, numEncounters) end
+			if reset and reset > 0 and SecondsToTime then
+				right = (right ~= "" and right .. "  " or "") .. SecondsToTime(reset, true)
+			end
+			lines[#lines + 1] = { left, right }
+		end
+	end
+	tt:AddLine(" ")
+	tt:AddLine(L.LOCKOUTS, NORMAL_FONT_COLOR:GetRGB())
+	if #lines == 0 then
+		tt:AddLine(L.NO_LOCKOUTS, 0.6, 0.6, 0.6)
+	end
+	for _, line in ipairs(lines) do
+		tt:AddDoubleLine(line[1], line[2], 1, 1, 1, 1, 1, 1)
+	end
 end
 
 function E:UpdateInstanceInfo()
@@ -52,12 +79,16 @@ function E:UpdateInstanceInfo()
 	local _, _, difficultyID, difficultyName, maxPlayers = GetInstanceInfo()
 	f.size:SetText(maxPlayers and maxPlayers > 0 and tostring(maxPlayers) or "")
 	local short = difficultyName or ""
-	local isHeroic = false
+	local isHeroic, isMythic = false, false
 	if difficultyID and GetDifficultyInfo then
-		local _, _, heroic, _, displayHeroic = GetDifficultyInfo(difficultyID)
+		local _, _, heroic, _, displayHeroic, displayMythic = GetDifficultyInfo(difficultyID)
 		isHeroic = heroic or displayHeroic
+		isMythic = displayMythic
 	end
-	if isHeroic then
+	if isMythic then
+		short = L.DIFF_MYTHIC
+		f.size:SetTextColor(0.78, 0.38, 1)
+	elseif isHeroic then
 		short = L.DIFF_HEROIC
 		f.size:SetTextColor(1, 0.5, 0.25)
 	else

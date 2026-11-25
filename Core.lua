@@ -33,6 +33,8 @@ ns.DEFAULTS = {
 		caves = false,
 		width = nil,
 		coords = true,
+		levelHover = true,
+		levelMap = true,
 	},
 	collector = {
 		enabled = true,
@@ -126,12 +128,48 @@ function ns.IsSecret(v)
 	return type(issecretvalue) == "function" and issecretvalue(v)
 end
 
+-- Profiles
+ns.SHARED = "Default"
+
+function ns.CharKey()
+	-- GetRealmName is ready at load time (UnitFullName may not be yet), so keys stay the same every session.
+	return (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+end
+
+-- Switch this character between the shared settings and its own copy of them. Needs a reload.
+function ns.SetOwnProfile(own)
+	if (ns.char.own and true or false) == own then return end
+	ns.char.own = own or nil
+	local key = ns.CharKey()
+	if own and type(ns.root.profiles[key]) ~= "table" then
+		ns.root.profiles[key] = CopyTable(ns.root.profiles[ns.SHARED])
+	end
+	StaticPopup_Show("MUNDI_RELOAD_PROFILE")
+end
+
+StaticPopupDialogs["MUNDI_RELOAD_PROFILE"] = {
+	text = L.RELOAD_PROFILE,
+	button1 = L.WM_RELOAD_NOW,
+	button2 = L.WM_RELOAD_LATER,
+	OnAccept = function() ReloadUI() end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+	preferredIndex = 3,
+}
+
+-- Gold of every character, for the tooltip of the gold field.
+function ns.SaveGold()
+	if not ns.root then return end
+	local _, class = UnitClass("player")
+	ns.root.gold[ns.CharKey()] = { money = GetMoney(), class = class }
+end
+
 function ns:ResetSettings()
 	-- Put moved elements back first; their saved spots are about to go.
 	if ns.layout and ns.db and ns.db.layout then ns.layout:ResetAll() end
-	wipe(MundiDB)
-	CopyDefaults(ns.DEFAULTS, MundiDB)
-	ns.db = MundiDB
+	wipe(ns.db)
+	CopyDefaults(ns.DEFAULTS, ns.db)
 	ns:ApplyAll()
 	if ns.options and ns.options.Refresh then ns.options:Refresh() end
 end
@@ -141,6 +179,7 @@ ns.events = events
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("PLAYER_MONEY")
 events:SetScript("OnEvent", function(self, event, arg1)
 	if event == "ADDON_LOADED" and arg1 == ADDON then
 		-- 2.0.0: SquareMap is now Mundi. Settings saved under the old name are taken over once
@@ -151,8 +190,23 @@ events:SetScript("OnEvent", function(self, event, arg1)
 		end
 		SquareMapDB = nil
 		MundiDB = MundiDB or {}
-		CopyDefaults(ns.DEFAULTS, MundiDB)
-		ns.db = MundiDB
+		local root = MundiDB
+		-- Settings live in profiles: one shared by all characters, and one per character that wants its own.
+		if type(root.profiles) ~= "table" then
+			local old = {}
+			for k, v in pairs(root) do old[k] = v; root[k] = nil end
+			root.profiles = { [ns.SHARED] = old }
+		end
+		root.chars = root.chars or {}
+		root.gold = root.gold or {}
+		root.profiles[ns.SHARED] = root.profiles[ns.SHARED] or {}
+		local charKey = ns.CharKey()
+		local char = root.chars[charKey] or {}
+		root.chars[charKey] = char
+		local name = char.own and charKey or ns.SHARED
+		if type(root.profiles[name]) ~= "table" then root.profiles[name] = CopyTable(root.profiles[ns.SHARED]) end
+		ns.root, ns.char = root, char
+		ns.db = CopyDefaults(ns.DEFAULTS, root.profiles[name])
 		-- 1.0.6: the click actions are back (the blocked popup came from the ping listener). Versions
 		-- 1.0.1 to 1.0.5 had reset right click to the ping; give it the tracking menu again once.
 		if not ns.db.map.clicksRestored then
@@ -186,7 +240,11 @@ events:SetScript("OnEvent", function(self, event, arg1)
 			local ok, err = pcall(ns.options.Register, ns.options)
 			if not ok then geterrorhandler()(err) end
 		end
+	elseif event == "PLAYER_MONEY" then
+		ns.SaveGold()
 	elseif event == "PLAYER_LOGIN" then
+		ns.sessionMoney = GetMoney()
+		ns.SaveGold()
 		for _, mod in ipairs(ns.modules) do
 			if mod.Init then
 				local ok, err = pcall(mod.Init, mod)

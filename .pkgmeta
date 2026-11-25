@@ -3,3 +3,7 @@ package-as: Mundi
 ignore:
   - docs
   - CHANGELOG.md
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
