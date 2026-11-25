@@ -19,6 +19,7 @@ ns.DEFAULTS = {
 		coordsPos = "BELOW",
 		headerPos = "ABOVE",
 		headerGap = 1,
+		headerFull = true,
 		showDiel = true,
 		showInstance = true,
 		showPing = true,

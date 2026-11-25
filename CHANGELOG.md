@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-11-25
+
+- New: the header (zone name, clock, calendar) stretches over the full width of the map. The option "Full width header" turns it off. With the full header the mail icon sits in the map corner.
+- Fixed: in Edit Mode the selection box was much larger than the square map, and the map sat off center. The minimap frame now hugs the map and its header, and the map is centered in it.
+- Fixed: the addon button window was too short for the frame art when it held a single row, so the side edges stuck out above and below the frame. The window now measures the frame corners and keeps the buttons centered.
+
 ## 1.0.1 - 2026-11-25
 
 - Fixed: the addon button window stayed empty. LibDBIcon pins its buttons to a fixed strata, so they were drawn behind the window.

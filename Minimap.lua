@@ -266,22 +266,33 @@ function M:ApplyHeader()
 	-- Zone button offsets are in its own units, the map edge is in container units.
 	local edge = extent * scale / zone:GetScale() + gap / zone:GetScale()
 
+	local shift = self:ApplyHeaderWidth(zone, extent, scale)
+
 	container:ClearAllPoints()
 	zone:ClearAllPoints()
 	if db.headerPos == "BELOW" then
-		container:SetPoint("TOP", cluster, "TOP", 10 / scale, (margin - extent))
-		zone:SetPoint("TOP", Minimap, "BOTTOM", 0, -edge)
+		container:SetPoint("TOP", cluster, "TOP", 0, (margin - extent))
+		zone:SetPoint("TOP", Minimap, "BOTTOM", shift, -edge)
 	else
-		container:SetPoint("TOP", cluster, "TOP", 10 / scale, -(zoneHeight + gap) / scale + (margin - extent))
-		zone:SetPoint("BOTTOM", Minimap, "TOP", 0, edge)
+		container:SetPoint("TOP", cluster, "TOP", 0, -(zoneHeight + gap) / scale + (margin - extent))
+		zone:SetPoint("BOTTOM", Minimap, "TOP", shift, edge)
 	end
 
-	-- Mail and other indicators: left of the header instead of hanging over the map.
 	local indicator = cluster.IndicatorFrame
 	if indicator then
 		indicator:ClearAllPoints()
-		local left = (cluster.Tracking and cluster.Tracking:IsShown()) and cluster.Tracking or zone
-		indicator:SetPoint("RIGHT", left, "LEFT", -2, 0)
+		if db.headerFull then
+			-- The header fills the map width: mail sits in the map corner next to the header, like Blizzard's own.
+			if db.headerPos == "BELOW" then
+				indicator:SetPoint("BOTTOMLEFT", Minimap, "BOTTOMLEFT", 2, 2)
+			else
+				indicator:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 2, -2)
+			end
+		else
+			-- Left of the header instead of hanging over the map.
+			local left = (cluster.Tracking and cluster.Tracking:IsShown()) and cluster.Tracking or zone
+			indicator:SetPoint("RIGHT", left, "LEFT", -2, 0)
+		end
 	end
 	-- Addon compartment: right of the calendar instead of below it.
 	local compartment, calendar = _G.AddonCompartmentFrame, _G.GameTimeFrame
@@ -289,6 +300,56 @@ function M:ApplyHeader()
 		compartment:ClearAllPoints()
 		compartment:SetPoint("LEFT", calendar, "RIGHT", 0, 0)
 	end
+end
+
+local HEADER_WIDTH = 152       -- Blizzard's header button
+local HEADER_TEXT_WIDTH = 110
+local HEADER_SLICE = 12        -- end caps of the header art that must not stretch
+local CALENDAR_OVERLAP = 4     -- the calendar overlaps the header end in Blizzard's layout
+
+local function Visible(frame)
+	return frame and frame:IsShown() and frame:GetWidth() * frame:GetScale() or 0
+end
+
+local function SetHeaderTexture(texture, full)
+	if not texture then return end
+	texture:ClearAllPoints()
+	if full then
+		texture:SetAllPoints()
+		if texture.SetTextureSliceMargins then
+			texture:SetTextureSliceMargins(HEADER_SLICE, 0, HEADER_SLICE, 0)
+			if texture.SetTextureSliceMode and Enum.UITextureSliceMode then
+				texture:SetTextureSliceMode(Enum.UITextureSliceMode.Stretched)
+			end
+		end
+	else
+		texture:SetPoint("CENTER")
+	end
+end
+
+-- Stretch the header (tracking, zone name, clock, calendar, addon compartment) over the full map width.
+-- Returns the horizontal offset that centers the whole row over the map.
+function M:ApplyHeaderWidth(zone, extent, scale)
+	local db = ns.db.map
+	local cluster = MinimapCluster
+	local zoneScale = zone:GetScale() or 1
+	local left = Visible(cluster.Tracking)
+	local right = math.max(0, Visible(_G.GameTimeFrame) - CALENDAR_OVERLAP) + Visible(_G.AddonCompartmentFrame)
+	local width = HEADER_WIDTH
+	if db.headerFull then
+		local mapWidth = (db.size + extent * 2) * scale
+		width = math.max(80, (mapWidth - left - right) / zoneScale)
+	end
+	zone:SetWidth(width)
+	SetHeaderTexture(zone.StateTexture, db.headerFull)
+	SetHeaderTexture(zone.AddTexture, db.headerFull)
+	local text = _G.MinimapZoneText
+	if text then
+		local clock = _G.TimeManagerClockButton
+		local clockWidth = (clock and clock:IsShown()) and clock:GetWidth() or 0
+		text:SetWidth(db.headerFull and math.max(40, width - 12 - clockWidth) or HEADER_TEXT_WIDTH)
+	end
+	return (left - right) / 2 / zoneScale
 end
 
 function M:ApplyDiel()
@@ -315,6 +376,34 @@ function M:ApplyBackdropButtons()
 	end
 end
 
+-- The cluster is the frame Edit Mode selects and moves. Blizzard sizes it for the round map (256 x 256);
+-- make it hug the square map and its header so the selection box matches what you see.
+local CLUSTER_PAD = 2
+function M:ApplyClusterSize()
+	local cluster = MinimapCluster
+	local container, zone = cluster and cluster.MinimapContainer, cluster and cluster.ZoneTextButton
+	if not (container and zone) then return end
+	if InCombatLockdown() and cluster:IsProtected() then return end
+	local db = ns.db.map
+	local scale = container:GetScale()
+	if not scale or scale <= 0 then scale = 1 end
+	local extent = self:GetBorderExtent()
+	local mapOuter = (db.size + extent * 2) * scale
+	local zoneScale = zone:GetScale() or 1
+	local width = math.max(mapOuter, (zone:GetWidth() + 50) * zoneScale)
+	local height = zone:GetHeight() * zoneScale + (db.headerGap or 0) + mapOuter
+
+	-- Coordinates under the map (or under a header below the map) hang outside the frame.
+	local coords = container.PlayerCoords
+	if db.coordsPos == "BELOW" and coords and coords:IsShown() then
+		height = height + (coords:GetHeight() + 3) * scale
+	end
+
+	self.sizingCluster = true
+	cluster:SetSize(width + CLUSTER_PAD * 2, height + CLUSTER_PAD)
+	self.sizingCluster = nil
+end
+
 function M:Apply()
 	if not self.ready then return end
 	if InCombatLockdown() and (Minimap:IsProtected() or MinimapCluster:IsProtected()) then
@@ -329,6 +418,7 @@ function M:Apply()
 	self:ApplyCoords()
 	self:ApplyDiel()
 	self:ApplyBackdropButtons()
+	self:ApplyClusterSize()
 	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
 end
 
@@ -344,8 +434,22 @@ end
 function M:HookBlizzard()
 	local cluster = MinimapCluster
 	local function reapply() M:Reapply() end
+	-- The header art is reset to its atlas size on every hover and click.
+	local zone = cluster.ZoneTextButton
+	if zone and zone.OnButtonStateChanged then
+		hooksecurefunc(zone, "OnButtonStateChanged", function(self)
+			SetHeaderTexture(self.StateTexture, ns.db.map.headerFull)
+		end)
+	end
 	for _, method in ipairs({ "UpdateMinimapConfig", "SetHeaderUnderneath", "SetEditModeScale", "ApplyExternalEventURLButtonAnchor" }) do
 		if cluster[method] then hooksecurefunc(cluster, method, reapply) end
+	end
+
+	-- The cluster is a ResizeLayoutFrame: whenever Blizzard re-lays it out, it grows back to the round size.
+	if cluster.Layout then
+		hooksecurefunc(cluster, "Layout", function()
+			if not M.sizingCluster then M:ApplyClusterSize() end
+		end)
 	end
 
 	local landing = _G.ExpansionLandingPageMinimapButton
@@ -384,6 +488,7 @@ function M:HookBlizzard()
 	end)
 
 	if EventRegistry and EventRegistry.RegisterCallback then
+		EventRegistry:RegisterCallback("EditMode.Enter", reapply, M)
 		EventRegistry:RegisterCallback("EditMode.Exit", reapply, M)
 	end
 end
