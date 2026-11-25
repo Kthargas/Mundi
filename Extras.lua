@@ -200,6 +200,7 @@ E.ACTIONS = {
 	{ key = "WORLDMAP", label = L.ACTION_WORLDMAP },
 	{ key = "COLLECTOR", label = L.ACTION_COLLECTOR },
 	{ key = "OPTIONS", label = L.ACTION_OPTIONS },
+	{ key = "LAYOUT", label = L.ACTION_LAYOUT },
 	{ key = "NONE", label = L.ACTION_NONE },
 }
 
@@ -233,6 +234,11 @@ function E:RunAction(action)
 	elseif action == "OPTIONS" then
 		ns.OpenOptions()
 		return true
+	elseif action == "LAYOUT" then
+		if ns.layout then
+			ns.layout:Toggle()
+			return true
+		end
 	elseif action == "COLLECTOR" then
 		if ns.collector then
 			ns.collector:Toggle()

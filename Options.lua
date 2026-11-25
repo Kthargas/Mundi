@@ -195,6 +195,7 @@ function O:CreateActionsPanel()
 	divider:SetPoint("TOP", 0, -50)
 
 	local rows = {
+		{ L.LAYOUT_EDIT, L.LAYOUT_EDIT_BTN, L.LAYOUT_EDIT_TT, function() if ns.layout then ns.layout:Start() end end },
 		{ L.MANAGE, L.MANAGE_BTN, L.MANAGE_TT, function() if ns.collector then ns.collector:ShowManager() end end },
 		{ L.SORT_RESET, L.SORT_RESET_BTN, L.SORT_RESET_TT, function() if ns.collector then ns.collector:ResetOrder() end end },
 		{ L.RESET_ALL, L.RESET_ALL_BTN, nil, function() StaticPopup_Show("SQUAREMAP_RESET") end },
