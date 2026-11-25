@@ -15,7 +15,8 @@ local ELEMENTS = {
 	{ key = "tracking", label = "EL_TRACKING", get = function() return MinimapCluster and MinimapCluster.Tracking end },
 	{ key = "calendar", label = "EL_CALENDAR", get = function() return _G.GameTimeFrame end },
 	{ key = "clock", label = "EL_CLOCK", get = function() return _G.TimeManagerClockButton end },
-	{ key = "compartment", label = "EL_COMPARTMENT", get = function() return _G.AddonCompartmentFrame end },
+	{ key = "compartment", label = "EL_COMPARTMENT", get = function() return _G.AddonCompartmentFrame end,
+		off = function() return ns.db.map.hideCompartment end },
 	{ key = "instance", label = "EL_INSTANCE", get = function() return MinimapCluster and MinimapCluster.InstanceDifficulty end },
 	{ key = "zoomIn", label = "EL_ZOOM_IN", get = function() return Minimap and Minimap.ZoomIn end },
 	{ key = "zoomOut", label = "EL_ZOOM_OUT", get = function() return Minimap and Minimap.ZoomOut end },
@@ -65,9 +66,62 @@ function E:Place(key)
 	return true
 end
 
+-- Size and layer. Blizzard sets the scale and frame level of some elements itself (day/night is
+-- counter-scaled, zoom buttons get a level above the border); when it does, that becomes the new base.
+local base = { scale = {}, level = {} }
+local applied = { scale = {}, level = {} }
+
+local function Track(kind, key, current)
+	if base[kind][key] == nil or (applied[kind][key] and math.abs(current - applied[kind][key]) > 0.001) then
+		base[kind][key] = current
+	end
+	return base[kind][key]
+end
+
+local MIN_SCALE, MAX_SCALE = 0.5, 2
+local MIN_LAYER, MAX_LAYER = -10, 10
+
+function E:GetScale(key) return db().scales[key] or 1 end
+function E:GetLayer(key) return db().layers[key] or 0 end
+
+function E:ApplyStyle(key)
+	local el = byKey[key]
+	local frame = el and el.get()
+	if not CanMove(frame) then return end
+	local scale, layer = db().scales[key], db().layers[key]
+	if scale or base.scale[key] then
+		local target = Track("scale", key, frame:GetScale()) * (scale or 1)
+		frame:SetScale(target)
+		applied.scale[key] = target
+		if not scale then base.scale[key], applied.scale[key] = nil, nil end
+	end
+	if layer or base.level[key] then
+		local target = math.max(0, Track("level", key, frame:GetFrameLevel()) + (layer or 0))
+		frame:SetFrameLevel(target)
+		applied.level[key] = target
+		if not layer then base.level[key], applied.level[key] = nil, nil end
+	end
+end
+
+function E:SetScale(key, value)
+	value = math.max(MIN_SCALE, math.min(MAX_SCALE, math.floor(value * 20 + 0.5) / 20))
+	db().scales[key] = math.abs(value - 1) > 0.001 and value or nil
+	self:ApplyStyle(key)
+	self:Place(key)
+	self:Refresh(key)
+end
+
+function E:SetLayer(key, value)
+	value = math.max(MIN_LAYER, math.min(MAX_LAYER, math.floor(value + 0.5)))
+	db().layers[key] = value ~= 0 and value or nil
+	self:ApplyStyle(key)
+	if self.active then self:UpdateDialog() end
+end
+
 -- Called by the map module after it has placed everything in its default spot.
 function E:ApplyPositions()
 	for _, el in ipairs(ELEMENTS) do
+		self:ApplyStyle(el.key)
 		if db().positions[el.key] then self:Place(el.key) end
 	end
 	if self.active then self:UpdateOverlays() end
@@ -86,9 +140,17 @@ function E:Clear(key)
 	self:Refresh(key)
 end
 
+-- Position, size and layer back to Blizzard's.
+function E:ResetElement(key)
+	db().scales[key], db().layers[key] = nil, nil
+	self:ApplyStyle(key)
+	self:Clear(key)
+end
+
 function E:ResetAll()
 	for _, el in ipairs(ELEMENTS) do
-		if db().positions[el.key] then self:Clear(el.key) end
+		local key = el.key
+		if db().positions[key] or db().scales[key] or db().layers[key] then self:ResetElement(key) end
 	end
 end
 
@@ -96,7 +158,7 @@ end
 function E:Refresh(key)
 	if ns.map and ns.map.Reapply then ns.map:Reapply() end
 	if key == "collector" and ns.collector and ns.collector.UpdateButton then ns.collector:UpdateButton() end
-	if self.active then self:UpdateOverlays() end
+	if self.active then self:UpdateOverlays() self:UpdateDialog() end
 end
 
 -- Offset of the element's centre from the map centre, in map units.
@@ -155,6 +217,8 @@ local function ShowTooltip(box)
 		GameTooltip:AddLine(L.LAYOUT_HIDDEN, 0.8, 0.8, 0.8, true)
 	end
 	GameTooltip:AddLine(L.LAYOUT_TT_DRAG, 1, 1, 1, true)
+	GameTooltip:AddLine(L.LAYOUT_TT_WHEEL, 1, 1, 1, true)
+	GameTooltip:AddLine(L.LAYOUT_TT_LAYER, 1, 1, 1, true)
 	GameTooltip:AddLine(L.LAYOUT_TT_RESET, 1, 1, 1, true)
 	GameTooltip:Show()
 end
@@ -177,7 +241,8 @@ function E:CreateBox(el)
 	box:SetScript("OnLeave", GameTooltip_Hide)
 	box:SetScript("OnMouseDown", function(self, button)
 		if button == "RightButton" then
-			E:Clear(el.key)
+			E:ResetElement(el.key)
+			E:Select(self)
 			ShowTooltip(self)
 			return
 		end
@@ -186,6 +251,16 @@ function E:CreateBox(el)
 	end)
 	box:SetScript("OnMouseUp", function(self, button)
 		if button == "LeftButton" then E:StopDrag(self) end
+	end)
+	-- Mouse wheel: size; with Shift: layer.
+	box:EnableMouseWheel(true)
+	box:SetScript("OnMouseWheel", function(self, delta)
+		E:Select(self)
+		if IsShiftKeyDown() then
+			E:SetLayer(el.key, E:GetLayer(el.key) + delta)
+		else
+			E:SetScale(el.key, E:GetScale(el.key) + delta * 0.05)
+		end
 	end)
 	return box
 end
@@ -222,6 +297,7 @@ function E:Select(box)
 		SetKit(other, other == box and SELECTED_KIT or HIGHLIGHT_KIT)
 	end
 	self.selected = box
+	self:UpdateDialog()
 end
 
 function E:UpdateOverlays()
@@ -229,6 +305,7 @@ function E:UpdateOverlays()
 	for _, el in ipairs(ELEMENTS) do
 		local box = self.boxes[el.key]
 		local frame = el.get()
+		if frame and el.off and el.off() then frame = nil end
 		if frame then
 			box = box or self:CreateBox(el)
 			self.boxes[el.key] = box
@@ -252,9 +329,33 @@ function E:UpdateOverlays()
 	end
 end
 
+local function CreateSlider(parent, minValue, maxValue, steps, format, onChange)
+	local slider = CreateFrame("Frame", nil, parent, "MinimalSliderWithSteppersTemplate")
+	slider:SetSize(190, 20)
+	local labels = MinimalSliderWithSteppersMixin and MinimalSliderWithSteppersMixin.Label
+	local formatters = labels and CreateMinimalSliderFormatter and { [labels.Right] = CreateMinimalSliderFormatter(labels.Right, format) }
+	function slider:SetSQMValue(value)
+		self.updating = true
+		self:Init(value, minValue, maxValue, steps, formatters)
+		self.updating = nil
+	end
+	slider:SetSQMValue(minValue)
+	slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
+		if not slider.updating then onChange(value) end
+	end, slider)
+	return slider
+end
+
+local function Row(parent, text, y)
+	local label = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	label:SetPoint("TOPLEFT", 22, y)
+	label:SetText(text)
+	return label
+end
+
 function E:CreateDialog()
 	local f = CreateFrame("Frame", "SquareMapLayoutDialog", UIParent)
-	f:SetSize(320, 168)
+	f:SetSize(340, 286)
 	f:SetFrameStrata("DIALOG")
 	f:SetFrameLevel(200)
 	f:EnableMouse(true)
@@ -277,9 +378,26 @@ function E:CreateDialog()
 	hint:SetJustifyH("LEFT")
 	hint:SetText(L.LAYOUT_HINT)
 
+	-- The selected element: its name, size and layer.
+	local selected = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	selected:SetPoint("TOPLEFT", 22, -100)
+	selected:SetPoint("TOPRIGHT", -22, -100)
+	selected:SetJustifyH("LEFT")
+	f.selected = selected
+
+	Row(f, L.LAYOUT_SCALE, -128)
+	f.scale = CreateSlider(f, MIN_SCALE * 100, MAX_SCALE * 100, 30, function(value) return ("%d%%"):format(value) end,
+		function(value) if E.selected then E:SetScale(E.selected.element.key, value / 100) end end)
+	f.scale:SetPoint("TOPRIGHT", -40, -124)
+
+	Row(f, L.LAYOUT_LAYER, -158)
+	f.layer = CreateSlider(f, MIN_LAYER, MAX_LAYER, MAX_LAYER - MIN_LAYER, function(value) return ("%+d"):format(value) end,
+		function(value) if E.selected then E:SetLayer(E.selected.element.key, value) end end)
+	f.layer:SetPoint("TOPRIGHT", -40, -154)
+
 	local snap = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
 	snap:SetSize(26, 26)
-	snap:SetPoint("TOPLEFT", 16, -82)
+	snap:SetPoint("TOPLEFT", 16, -190)
 	local snapText = snap.Text or snap:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 	snapText:ClearAllPoints()
 	snapText:SetPoint("LEFT", snap, "RIGHT", 2, 1)
@@ -288,14 +406,21 @@ function E:CreateDialog()
 	snap:SetScript("OnShow", function(self) self:SetChecked(db().snap) end)
 	snap:SetScript("OnClick", function(self) db().snap = self:GetChecked() and true or false end)
 
+	local resetOne = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	resetOne:SetSize(296, 22)
+	resetOne:SetPoint("TOP", 0, -222)
+	resetOne:SetText(L.LAYOUT_RESET_ONE)
+	resetOne:SetScript("OnClick", function() if E.selected then E:ResetElement(E.selected.element.key) end end)
+	f.resetOne = resetOne
+
 	local reset = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	reset:SetSize(130, 22)
+	reset:SetSize(140, 22)
 	reset:SetPoint("BOTTOMLEFT", 22, 20)
 	reset:SetText(L.LAYOUT_RESET)
 	reset:SetScript("OnClick", function() E:ResetAll() end)
 
 	local done = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-	done:SetSize(130, 22)
+	done:SetSize(140, 22)
 	done:SetPoint("BOTTOMRIGHT", -22, 20)
 	done:SetText(L.LAYOUT_DONE)
 	done:SetScript("OnClick", function() E:Stop() end)
@@ -305,6 +430,19 @@ function E:CreateDialog()
 	f:Hide()
 	self.dialog = f
 	return f
+end
+
+function E:UpdateDialog()
+	local f = self.dialog
+	if not f then return end
+	local box = self.selected
+	local key = box and box.element.key
+	f.selected:SetText(box and L[box.element.label] or L.LAYOUT_NONE)
+	f.scale:SetSQMValue(key and self:GetScale(key) * 100 or 100)
+	f.layer:SetSQMValue(key and self:GetLayer(key) or 0)
+	for _, widget in ipairs({ f.scale, f.layer, f.resetOne }) do
+		if widget.SetEnabled then widget:SetEnabled(key ~= nil) end
+	end
 end
 
 function E:Start()
@@ -317,6 +455,7 @@ function E:Start()
 	self.boxes = self.boxes or {}
 	self:UpdateOverlays()
 	;(self.dialog or self:CreateDialog()):Show()
+	self:UpdateDialog()
 	self.events = self.events or CreateFrame("Frame")
 	self.events:RegisterEvent("PLAYER_REGEN_DISABLED")
 	self.events:SetScript("OnEvent", function() E:Stop() end)

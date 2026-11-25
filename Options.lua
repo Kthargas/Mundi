@@ -112,6 +112,7 @@ function O:Register()
 	})
 	self:Slider(category, "map", "headerGap", L.HEADER_GAP, L.HEADER_GAP_TT, -10, 20, 1)
 	self:Checkbox(category, "map", "headerFull", L.HEADER_FULL, L.HEADER_FULL_TT)
+	self:Checkbox(category, "map", "hideCompartment", L.HIDE_COMPARTMENT, L.HIDE_COMPARTMENT_TT)
 
 	self:CVarCheckbox(category, "rotateMinimap", "SQUAREMAP_CVAR_ROTATE", L.ROTATE, L.ROTATE_TT)
 	self:Dropdown(category, "map", "zoomButtons", L.ZOOM_BUTTONS, L.ZOOM_BUTTONS_TT, {

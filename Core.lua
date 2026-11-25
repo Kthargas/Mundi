@@ -21,6 +21,7 @@ ns.DEFAULTS = {
 		headerPos = "ABOVE",
 		headerGap = 1,
 		headerFull = true,
+		hideCompartment = false,
 		showDiel = true,
 		showInstance = true,
 		compass = true,
@@ -55,6 +56,8 @@ ns.DEFAULTS = {
 	layout = {
 		snap = true,
 		positions = {},
+		scales = {},
+		layers = {},
 	},
 }
 
