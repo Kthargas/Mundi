@@ -431,8 +431,7 @@ function M:SetFieldGlow(key, on)
 	end
 end
 
--- One square field with a small frame in the map's border style around it.
-local FIELD_BORDER_SCALE = 0.33
+-- One square field at the end of the header bar: just the icon, no frame of its own.
 
 function M:GetFieldFrame(zone, side)
 	self.fields = self.fields or {}
@@ -455,43 +454,8 @@ function M:GetFieldFrame(zone, side)
 	local day = field:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	day:SetPoint("CENTER", icon, "CENTER", 0, -1)
 	field.day = day
-	field.border = CreateFrame("Frame", nil, field)
-	field.lines = {}
-	for i = 1, 4 do
-		local line = field:CreateTexture(nil, "OVERLAY")
-		line:SetColorTexture(0, 0, 0, 0.9)
-		field.lines[i] = line
-	end
-	field.lines[1]:SetPoint("TOPLEFT") field.lines[1]:SetPoint("TOPRIGHT") field.lines[1]:SetHeight(1)
-	field.lines[2]:SetPoint("BOTTOMLEFT") field.lines[2]:SetPoint("BOTTOMRIGHT") field.lines[2]:SetHeight(1)
-	field.lines[3]:SetPoint("TOPLEFT") field.lines[3]:SetPoint("BOTTOMLEFT") field.lines[3]:SetWidth(1)
-	field.lines[4]:SetPoint("TOPRIGHT") field.lines[4]:SetPoint("BOTTOMRIGHT") field.lines[4]:SetWidth(1)
 	self.fields[side] = field
 	return field
-end
-
-function M:ApplyFieldBorder(field)
-	local style = self:GetBorderStyle(ns.db.map.border)
-	local layout = GetLayout(style)
-	local border = field.border
-	for _, name in ipairs(PIECES) do
-		if border[name] then border[name]:Hide() end
-	end
-	for _, line in ipairs(field.lines) do line:SetShown(not layout) end
-	if not layout then
-		border:Hide()
-		return
-	end
-	border:SetScale(FIELD_BORDER_SCALE)
-	local pad = style.pad or 0
-	border:ClearAllPoints()
-	border:SetPoint("TOPLEFT", field, "TOPLEFT", -pad, pad)
-	border:SetPoint("BOTTOMRIGHT", field, "BOTTOMRIGHT", pad, -pad)
-	NineSliceUtil.ApplyLayout(border, layout)
-	for name in pairs(layout) do
-		if border[name] and border[name].Show then border[name]:Show() end
-	end
-	border:Show()
 end
 
 function M:UpdateFieldIcon(field, key, size)
@@ -544,7 +508,6 @@ function M:PlaceField(zone, side, size)
 	field:SetShown(used and true or false)
 	if not used then return 0 end
 
-	self:ApplyFieldBorder(field)
 	self:UpdateFieldIcon(field, key, size)
 	HideArt(key, frame)
 	if key ~= "diel" then
