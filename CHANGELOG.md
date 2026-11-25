@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2 - 2026-11-25
+
+- Fixed: "An action was blocked because of taint from SquareMap - IsUserOAuthed()" in the settings window (Social > Discord, or search results). The settings list reuses its control frames across all categories; the button controls on the SquareMap page tainted them, and Blizzard's Discord button later reused one. The buttons (choose buttons, button order, reset) now sit on their own page, SquareMap > Actions, built from SquareMap's own frames.
+
 ## 1.3.1 - 2026-11-25
 
 - Fixed: sharing a map pin (shift-click) showed "SquareMap has been blocked from an action" for CopyToClipboard(). The world map module ran Blizzard's map code from addon code on every open (canvas refit for the custom size, switching to the cave map), and pins created meanwhile were tainted.

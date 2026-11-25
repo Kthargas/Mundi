@@ -138,6 +138,7 @@ L.CMP_RIGHT = "|cffffffffRight click:|r addon buttons"
 
 -- Misc
 L.SECTION_INFO = "Info"
+L.SECTION_ACTIONS = "Actions"
 L.HELP = "Commands: |cffffd100/sqm|r options, |cffffd100/sqm buttons|r window, |cffffd100/sqm manage|r choose buttons, |cffffd100/sqm scan|r search buttons again, |cffffd100/sqm add <frame>|r collect a button by name, |cffffd100/sqm atlas|r check Blizzard art, |cffffd100/sqm reset|r defaults"
 L.ADDED = "%s will be collected."
 L.NOT_FOUND = "No frame named %s found."
@@ -256,6 +257,7 @@ if GetLocale() == "deDE" then
 	L.CLOSE_ON_CLICK_TT = "Schließt das Fenster, sobald du einen der Addon-Buttons anklickst."
 	L.AUTO_HIDE = "Schließen, wenn die Maus es verlässt"
 	L.AUTO_HIDE_TT = "Schließt das Fenster nach so vielen Sekunden ohne Maus darüber. 0 schaltet es aus."
+	L.SECTION_ACTIONS = "Aktionen"
 	L.MANAGE = "Buttons auswählen"
 	L.MANAGE_BTN = "Öffnen"
 	L.MANAGE_TT = "Wähle, welche Addon-Buttons gesammelt werden und welche an der Minimap bleiben."
