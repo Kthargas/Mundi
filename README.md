@@ -53,6 +53,7 @@ own settings window (the action buttons on a separate "Actions" page under Squar
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
 - Right and middle click on the map: tracking menu, calendar, world map, addon button window, options or just the Blizzard ping.
+- Layout editor (`/sqm layout`): drag every minimap button and display (mail, tracking, calendar, clock, zoom, ...) to any spot around the map, with Blizzard's Edit Mode look.
 - Key bindings for the addon button window and the options; entry in the addon compartment.
 
 ## Installation

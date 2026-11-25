@@ -333,8 +333,12 @@ function M:ApplyHeaderWidth(zone, extent, scale)
 	local db = ns.db.map
 	local cluster = MinimapCluster
 	local zoneScale = zone:GetScale() or 1
-	local left = Visible(cluster.Tracking)
-	local right = math.max(0, Visible(_G.GameTimeFrame) - CALENDAR_OVERLAP) + Visible(_G.AddonCompartmentFrame)
+	-- Elements moved with the layout editor no longer take room in the header.
+	local layout = ns.layout and ns.db.layout and ns.layout
+	local function Moved(key) return layout and layout:IsMoved(key) end
+	local left = Moved("tracking") and 0 or Visible(cluster.Tracking)
+	local right = (Moved("calendar") and 0 or math.max(0, Visible(_G.GameTimeFrame) - CALENDAR_OVERLAP))
+		+ ((Moved("compartment") or Moved("calendar")) and 0 or Visible(_G.AddonCompartmentFrame))
 	local width = HEADER_WIDTH
 	if db.headerFull then
 		local mapWidth = (db.size + extent * 2) * scale
@@ -346,7 +350,7 @@ function M:ApplyHeaderWidth(zone, extent, scale)
 	local text = _G.MinimapZoneText
 	if text then
 		local clock = _G.TimeManagerClockButton
-		local clockWidth = (clock and clock:IsShown()) and clock:GetWidth() or 0
+		local clockWidth = (clock and clock:IsShown() and not Moved("clock")) and clock:GetWidth() or 0
 		text:SetWidth(db.headerFull and math.max(40, width - 12 - clockWidth) or HEADER_TEXT_WIDTH)
 	end
 	return (left - right) / 2 / zoneScale
@@ -418,6 +422,7 @@ function M:Apply()
 	self:ApplyCoords()
 	self:ApplyDiel()
 	self:ApplyBackdropButtons()
+	if ns.layout and ns.db.layout then ns.layout:ApplyPositions() end
 	self:ApplyClusterSize()
 	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
 end

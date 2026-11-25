@@ -764,6 +764,8 @@ end
 ---------------------------------------------------------------------------
 
 local function PlaceButton(button)
+	-- A spot chosen in the layout editor wins over the position on the map edge.
+	if ns.layout and ns.db.layout and ns.layout:Place("collector") then return end
 	local angle = math.rad(db().angle or 225)
 	local x, y = math.cos(angle), math.sin(angle)
 	local w = Minimap:GetWidth() / 2 + 5
@@ -841,6 +843,8 @@ function C:CreateButton()
 	b:SetScript("OnLeave", GameTooltip_Hide)
 	b:SetScript("OnDragStart", function(self)
 		self:LockHighlight()
+		-- Dragging the button along the map edge replaces a spot from the layout editor.
+		if ns.db.layout then ns.db.layout.positions.collector = nil end
 		self:SetScript("OnUpdate", function()
 			local mx, my = Minimap:GetCenter()
 			local scale = Minimap:GetEffectiveScale()

@@ -51,6 +51,10 @@ ns.DEFAULTS = {
 		order = {},
 		manual = {},
 	},
+	layout = {
+		snap = true,
+		positions = {},
+	},
 }
 
 local function CopyDefaults(src, dst)
@@ -112,6 +116,8 @@ function ns.IsSecret(v)
 end
 
 function ns:ResetSettings()
+	-- Put moved elements back first; their saved spots are about to go.
+	if ns.layout and ns.db and ns.db.layout then ns.layout:ResetAll() end
 	wipe(SquareMapDB)
 	CopyDefaults(ns.DEFAULTS, SquareMapDB)
 	ns.db = SquareMapDB
@@ -226,6 +232,8 @@ SlashCmdList.SQUAREMAP = function(msg)
 		ns.Print(L.COLLECTED:format(ns.collector and ns.collector:Count() or 0))
 	elseif cmd == "add" and rest ~= "" then
 		if ns.collector then ns.collector:AddManual(rest) end
+	elseif cmd == "layout" or cmd == "edit" then
+		if ns.layout then ns.layout:Toggle() end
 	elseif cmd == "atlas" then
 		if ns.map then ns.map:PrintAtlasReport() end
 	elseif cmd == "reset" then

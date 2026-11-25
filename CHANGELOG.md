@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0 - 2026-11-25
+
+- New: layout editor for the minimap (`/sqm layout`, SquareMap > Actions > Edit layout, or as a click action on the map). Drag the mail icon, crafting orders, tracking, calendar, clock, addon compartment, instance difficulty, zoom buttons, day/night indicator, expansion summary, event button, coordinates and the addon button collector anywhere around the map.
+  - Selection boxes use Blizzard's Edit Mode art; the dialog uses Blizzard's dialog frame.
+  - Snapping to a 4 px grid, the centre lines and the map edges (can be turned off).
+  - Right click on an element puts it back; "Reset all" restores the default layout.
+  - Hidden elements (no mail, outside instances, ...) are shown faded so they can be placed too.
+  - Positions are stored relative to the map size, so a layout keeps its shape when the map is resized. Elements moved out of the header free their room for the zone name.
+
 ## 1.3.2 - 2026-11-25
 
 - Fixed: "An action was blocked because of taint from SquareMap - IsUserOAuthed()" in the settings window (Social > Discord, or search results). The settings list reuses its control frames across all categories; the button controls on the SquareMap page tainted them, and Blizzard's Discord button later reused one. The buttons (choose buttons, button order, reset) now sit on their own page, SquareMap > Actions, built from SquareMap's own frames.
