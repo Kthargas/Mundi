@@ -623,9 +623,11 @@ function E:CreateDialog()
 	done:SetText(L.LAYOUT_DONE)
 	done:SetScript("OnClick", function() E:Stop() end)
 
+	-- New frames start shown: hide first, then hook OnHide. The other way round, this Hide ran Stop
+	-- on the editor that was just starting, so the first open of a session did nothing.
+	f:Hide()
 	f:SetScript("OnHide", function() if E.active then E:Stop() end end)
 	tinsert(UISpecialFrames, "SquareMapLayoutDialog")
-	f:Hide()
 	self.dialog = f
 	self.panels = {}
 	return f
@@ -666,10 +668,11 @@ function E:Start()
 		UIErrorsFrame:AddMessage(ERR_NOT_IN_COMBAT or L.NOT_IN_COMBAT, 1, 0.1, 0.1)
 		return
 	end
+	local dialog = self.dialog or self:CreateDialog()
 	self.active = true
 	self.boxes = self.boxes or {}
 	self:UpdateOverlays()
-	;(self.dialog or self:CreateDialog()):Show()
+	dialog:Show()
 	self:UpdateDialog()
 	self.events = self.events or CreateFrame("Frame")
 	self.events:RegisterEvent("PLAYER_REGEN_DISABLED")
