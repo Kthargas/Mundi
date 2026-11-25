@@ -52,11 +52,19 @@ local function IsIgnoredName(name)
 	return false
 end
 
+local function IsBlizzardFrame(name)
+	if type(issecurevariable) ~= "function" then return false end
+	local secure, owner = issecurevariable(name)
+	return secure and not owner
+end
+
 local function LooksLikeButton(frame)
 	if not frame.IsObjectType then return false end
 	if frame:IsForbidden() or frame:IsProtected() then return false end
 	local name = frame:GetName()
 	if not name or name:find("^LibDBIcon10_") then return false end
+	-- Never take Blizzard's own frames: moving them from addon code spreads taint.
+	if IsBlizzardFrame(name) then return false end
 	if db().manual[name] then return true end
 	if IsIgnoredName(name) then return false end
 	if not frame:IsMouseEnabled() then return false end
@@ -171,7 +179,7 @@ function C:Scan(force)
 
 	for name in pairs(db().manual) do
 		local frame = _G[name]
-		if type(frame) == "table" and frame.GetObjectType and not frame:IsForbidden() then
+		if type(frame) == "table" and frame.GetObjectType and not frame:IsForbidden() and not IsBlizzardFrame(name) then
 			self:Register(frame, DisplayName(name), "MANUAL")
 		end
 	end
@@ -181,7 +189,7 @@ end
 
 function C:AddManual(name)
 	local frame = _G[name]
-	if type(frame) ~= "table" or not frame.GetObjectType then
+	if type(frame) ~= "table" or not frame.GetObjectType or frame:IsForbidden() or IsBlizzardFrame(name) then
 		ns.Print(L.NOT_FOUND:format(name))
 		return
 	end
@@ -217,7 +225,9 @@ function C:Grab(entry)
 
 	local orig = { parent = b:GetParent(), strata = b:GetFrameStrata(), level = b:GetFrameLevel(),
 		scale = b:GetScale(), alpha = b:GetAlpha(), points = {}, methods = {},
-		dragStart = b:GetScript("OnDragStart"), dragStop = b:GetScript("OnDragStop") }
+		dragStart = b:GetScript("OnDragStart"), dragStop = b:GetScript("OnDragStop"),
+		fixedStrata = b.HasFixedFrameStrata and b:HasFixedFrameStrata(),
+		fixedLevel = b.HasFixedFrameLevel and b:HasFixedFrameLevel() }
 	for i = 1, b:GetNumPoints() do
 		orig.points[i] = { b:GetPoint(i) }
 	end
@@ -233,6 +243,9 @@ function C:Grab(entry)
 	for _, method in ipairs(OVERRIDES) do b[method] = Nop end
 	b:SetScript("OnDragStart", nil)
 	b:SetScript("OnDragStop", nil)
+	-- LibDBIcon pins its buttons to MEDIUM strata; inside the DIALOG window they would be hidden behind it.
+	if b.SetFixedFrameStrata then b:SetFixedFrameStrata(false) end
+	if b.SetFixedFrameLevel then b:SetFixedFrameLevel(false) end
 	b:SetFrameStrata(self.content:GetFrameStrata())
 	b:SetFrameLevel(self.content:GetFrameLevel() + 5)
 	meta.SetAlpha(b, 1)
@@ -276,8 +289,12 @@ function C:Release(entry)
 		b[method] = saved or nil
 	end
 	meta.SetParent(b, orig.parent or Minimap)
+	if b.SetFixedFrameStrata then b:SetFixedFrameStrata(false) end
+	if b.SetFixedFrameLevel then b:SetFixedFrameLevel(false) end
 	b:SetFrameStrata(orig.strata)
 	b:SetFrameLevel(orig.level)
+	if orig.fixedStrata then b:SetFixedFrameStrata(true) end
+	if orig.fixedLevel then b:SetFixedFrameLevel(true) end
 	b:SetScale(orig.scale)
 	b:SetAlpha(orig.alpha)
 	b:SetScript("OnDragStart", orig.dragStart)

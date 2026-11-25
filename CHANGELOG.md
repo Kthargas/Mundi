@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 - 2026-11-25
+
+- Fixed: the addon button window stayed empty. LibDBIcon pins its buttons to a fixed strata, so they were drawn behind the window.
+- Fixed: "SquareMap has been blocked from an action only available to the Blizzard UI". SquareMap no longer replaces the minimap click handler (it only adds to it), no longer runs Blizzard layout code itself, no longer overwrites the global popup table and never collects Blizzard's own frames.
+- Removed the calendar and world map click actions: opening those panels from addon code spreads taint. Saved settings fall back to the default.
+
 ## 1.0.0 - 2026-11-25
 
 First release.

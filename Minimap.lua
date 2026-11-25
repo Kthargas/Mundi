@@ -283,9 +283,6 @@ function M:Apply()
 	self:ApplyCoords()
 	self:ApplyDiel()
 	self:ApplyBackdropButtons()
-	if MinimapCluster and MinimapCluster.Layout then
-		MinimapCluster:Layout()
-	end
 	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
 end
 

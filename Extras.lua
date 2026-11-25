@@ -243,8 +243,6 @@ end
 E.ACTIONS = {
 	{ key = "PING", label = L.ACTION_PING },
 	{ key = "TRACKING", label = L.ACTION_TRACKING },
-	{ key = "CALENDAR", label = L.ACTION_CALENDAR },
-	{ key = "WORLDMAP", label = L.ACTION_WORLDMAP },
 	{ key = "COLLECTOR", label = L.ACTION_COLLECTOR },
 	{ key = "NONE", label = L.ACTION_NONE },
 }
@@ -260,16 +258,6 @@ function E:RunAction(action)
 			end
 			return true
 		end
-	elseif action == "CALENDAR" then
-		if _G.GameTimeFrame and GameTimeFrame:IsEnabled() then
-			GameTimeFrame:Click()
-			return true
-		end
-	elseif action == "WORLDMAP" then
-		if ToggleWorldMap then
-			ToggleWorldMap()
-			return true
-		end
 	elseif action == "COLLECTOR" then
 		if ns.collector then
 			ns.collector:Toggle()
@@ -282,16 +270,18 @@ function E:RunAction(action)
 end
 
 function E:HookClicks()
-	local original = Minimap:GetScript("OnMouseUp")
-	Minimap:SetScript("OnMouseUp", function(map, button, ...)
-		local action = "PING"
+	-- Only hook, never replace Blizzard's handler: a replaced script would run the ping from addon code.
+	-- Blizzard pings on every mouse button; the chosen action runs in addition.
+	Minimap:HookScript("OnMouseUp", function(_, button)
+		local action
 		if button == "RightButton" then
 			action = ns.db.map.rightClick
 		elseif button == "MiddleButton" then
 			action = ns.db.map.middleClick
 		end
-		if action ~= "PING" and E:RunAction(action) then return end
-		if original then return original(map, button, ...) end
+		if action and action ~= "PING" then
+			E:RunAction(action)
+		end
 	end)
 end
 

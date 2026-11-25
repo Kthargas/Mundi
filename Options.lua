@@ -191,7 +191,6 @@ function O:Open()
 	end
 end
 
-StaticPopupDialogs = StaticPopupDialogs or {}
 StaticPopupDialogs["SQUAREMAP_RESET"] = {
 	text = L.RESET_CONFIRM,
 	button1 = YES,
