@@ -23,7 +23,7 @@ own settings window (the action buttons on a separate "Actions" page under Squar
 - Frame styles from the game's art: gold dialog frame (default), tooltip, metal, simple metal or a thin line.
   Thickness and distance can be tuned.
 - Zoom buttons in the lower right corner: on mouseover (like Blizzard), always or never.
-- Rotate the minimap and show coordinates (Blizzard settings, also reachable here), coordinates below or
+- Show coordinates (Blizzard setting, also reachable here; the map always keeps north up, rotation is switched off), coordinates below or
   inside the map.
 - Works with LibDBIcon: addons that are not collected place their buttons on the square edge.
 
@@ -48,7 +48,6 @@ own settings window (the action buttons on a separate "Actions" page under Squar
 
 ### Extras
 - Instance info (group size and difficulty) in dungeons and raids, since Forever has no difficulty banner.
-- North marker on the edge while the minimap rotates.
 - Auto zoom out after a few seconds.
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.

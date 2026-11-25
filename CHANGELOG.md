@@ -6,7 +6,7 @@
 - Icons are drawn by the field itself and sit exactly in its centre; the function's own button stays on the field, invisible, for clicks, menus and tooltips.
 - Addon button in a field: moves into the header, so it gets the clicks; its own ring, background and count are hidden and its icon is shown round in the field.
 - Day/night in a field: Blizzard's frame with its ring is hidden; the field shows the middle of the sun or moon picture, cut round, and follows day and night.
-- Rotate minimap: the game turns the terrain as a square, so a square map had empty corners. While rotating, the map is round inside the square frame on a dark backdrop, and other addons are told the map is round.
+- Rotate minimap: the game turns the terrain as a square, so a square map had empty corners. SquareMap now keeps north up: Blizzard's "Rotate minimap" is switched off at login and whenever it is turned on (with a chat note), and the rotate and compass options are gone.
 
 ## 1.8.0 - 2026-11-25
 

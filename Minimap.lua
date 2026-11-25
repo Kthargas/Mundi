@@ -157,28 +157,20 @@ local function RefreshMinimapRender()
 	Minimap:SetZoom(zoom)
 end
 
--- With "rotate minimap" the game draws the terrain as a turned square, so the corners of a square map
--- stay empty. While it rotates the map is round inside the square frame, on a dark backdrop.
-local ROUND_MASK = "ui-hud-minimap-frame-generic-mask"
-
-function M:IsRotating()
-	return GetCVarBool and GetCVarBool("rotateMinimap") or false
+-- "Rotate minimap" does not work with a square map: the game turns the terrain as a square, so the
+-- corners stay empty. SquareMap keeps north up and switches the Blizzard setting back off.
+function M:KeepNorthUp()
+	if not (GetCVarBool and GetCVarBool("rotateMinimap")) then return end
+	SetCVar("rotateMinimap", "0")
+	if not self.rotateReported then
+		self.rotateReported = true
+		ns.Print(L.ROTATE_OFF)
+	end
 end
 
 function M:ApplyMask()
-	local rotating = self:IsRotating()
-	if rotating then
-		Minimap:SetMaskTexture(AtlasExists(ROUND_MASK) and ROUND_MASK or "Interface\\CharacterFrame\\TempPortraitAlphaMask")
-	else
-		Minimap:SetMaskTexture(ns.SQUARE_MASK)
-	end
-	if not self.rotateBackdrop then
-		local backdrop = Minimap:GetParent():CreateTexture(nil, "BACKGROUND")
-		backdrop:SetAllPoints(Minimap)
-		backdrop:SetColorTexture(0, 0, 0, 0.6)
-		self.rotateBackdrop = backdrop
-	end
-	self.rotateBackdrop:SetShown(rotating)
+	self:KeepNorthUp()
+	Minimap:SetMaskTexture(ns.SQUARE_MASK)
 	-- The quest and archaeology areas are drawn with a round ring by default.
 	if Minimap.SetQuestBlobRingScalar then Minimap:SetQuestBlobRingScalar(0) end
 	if Minimap.SetArchBlobRingScalar then Minimap:SetArchBlobRingScalar(0) end
@@ -1030,6 +1022,11 @@ function M:HookBlizzard()
 			SetHeaderTexture(self.AddTexture)
 		end)
 	end
+	if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
+		CVarCallbackRegistry:RegisterCallback("rotateMinimap", function()
+			C_Timer.After(0, function() M:KeepNorthUp() end)
+		end, M)
+	end
 	for _, method in ipairs({ "UpdateMinimapConfig", "SetHeaderUnderneath", "SetEditModeScale", "ApplyExternalEventURLButtonAnchor" }) do
 		if cluster[method] then hooksecurefunc(cluster, method, reapply) end
 	end
@@ -1095,7 +1092,6 @@ end
 
 -- Other addons (LibDBIcon and friends) ask this to place their buttons on the edge.
 function GetMinimapShape()
-	if M:IsRotating() then return "ROUND" end
 	return "SQUARE"
 end
 
