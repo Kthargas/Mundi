@@ -1,5 +1,5 @@
 ## Interface: 16001
-## Title: Mundi |cff9d9d9d- Blizzlike Square Map|r
+## Title: Mundi |cff9d9d9d- The Map, but squared|r
 ## Notes: Square, Blizzard-styled minimap and world map tweaks for WoW Forever, with an addon button collector. Formerly SquareMap.
 ## Notes-deDE: Quadratische Minimap und Weltkarten-Verbesserungen im Blizzard-Stil für WoW Forever, mit Sammel-Button für Addon-Buttons. Früher SquareMap.
 ## Author: Kthargas

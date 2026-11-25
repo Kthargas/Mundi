@@ -4,7 +4,7 @@
 
 <h1 align="center">Mundi</h1>
 
-<p align="center"><em>Blizzlike Square Map</em> · formerly SquareMap</p>
+<p align="center"><em>The Map, but squared</em> · formerly SquareMap</p>
 
 <p align="center">
   A square minimap for <strong>World of Warcraft: Forever</strong> that looks like Blizzard made it,<br>
