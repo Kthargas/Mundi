@@ -299,7 +299,27 @@ function M:ApplyHeader()
 	if compartment and calendar then
 		compartment:ClearAllPoints()
 		compartment:SetPoint("LEFT", calendar, "RIGHT", 0, 0)
+		self:ApplyCompartment(compartment)
 	end
+end
+
+-- Blizzard's addon compartment lists addons that registered for it; the collector button shows the
+-- actual minimap buttons. Both at once is twice the same list, so the compartment can be hidden.
+function M:ApplyCompartment(compartment)
+	if not self.compartmentHooked then
+		self.compartmentHooked = true
+		compartment:HookScript("OnShow", function(frame)
+			if ns.db.map.hideCompartment then frame:Hide() end
+		end)
+	end
+	if ns.db.map.hideCompartment then
+		compartment:Hide()
+	elseif self.compartmentHidden then
+		-- Same rule as Blizzard's own: shown when addons have registered entries.
+		local entries = compartment.registeredAddons
+		compartment:SetShown(entries == nil or #entries > 0)
+	end
+	self.compartmentHidden = ns.db.map.hideCompartment
 end
 
 local HEADER_WIDTH = 152       -- Blizzard's header button

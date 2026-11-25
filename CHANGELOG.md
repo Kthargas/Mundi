@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.0 - 2026-11-25
+
+- Layout editor: size and layer per element.
+  - Mouse wheel over an element changes its size (50 to 200 %), Shift + mouse wheel its layer (in front of or behind other elements, -10 to +10).
+  - The dialog shows the selected element with size and layer sliders (Blizzard's slider with steppers) and a button to reset just that element.
+  - Right click resets position, size and layer of an element; "Reset all" resets everything.
+- New option: hide Blizzard's addon compartment (Minimap section). The SquareMap button already collects the actual minimap buttons, so the compartment mostly lists the same addons twice.
+
 ## 1.4.1 - 2026-11-25
 
 - Fixed: "An action was blocked in combat because of taint from SquareMap - Button:SetPassThroughButtons()" from quest pins on the world map. The world map was still run from addon code in two places:
