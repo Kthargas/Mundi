@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 - 2026-11-25
+
+- World map: level ranges. On a continent map the zone under the cursor shows its level range next to its name, and every zone shows its range in the middle of the zone. The colour follows your level like quest colours (red and orange above you, yellow in range, green and grey below). Both can be switched off on the World map page of the options.
+- Forever's client has no level data of its own, so Mundi carries the classic ranges (looked up by zone name in English and German and by map ID). If the client ever provides its own ranges, those are used.
+- Drawn as Mundi's own text on top of Blizzard's map, without map pins or calls into Blizzard's map code, so the map stays untainted.
+
 ## 2.0.0 - 2026-11-25
 
 - SquareMap is now **Mundi** (The Map, but squared). Folder, TOC, title, options, key bindings and frame names use the new name; the command is `/mundi` (`/sqm` and `/squaremap` are gone).

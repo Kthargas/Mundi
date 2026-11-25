@@ -198,6 +198,8 @@ function O:BuildWorldMap(category, layout)
 	Header(layout, L.SECTION_WORLDMAP)
 	self:Checkbox(category, "worldmap", "coords", L.WM_COORDS, L.WM_COORDS_TT)
 	self:Checkbox(category, "worldmap", "caves", L.WM_CAVES, L.WM_CAVES_TT)
+	self:Checkbox(category, "worldmap", "levelHover", L.WM_LEVEL_HOVER, L.WM_LEVEL_HOVER_TT)
+	self:Checkbox(category, "worldmap", "levelMap", L.WM_LEVEL_MAP, L.WM_LEVEL_MAP_TT)
 end
 
 -- Actions page: same look as Fray's (title, divider, sections with a label, a button and a note per row).

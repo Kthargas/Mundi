@@ -33,6 +33,8 @@ ns.DEFAULTS = {
 		caves = false,
 		width = nil,
 		coords = true,
+		levelHover = true,
+		levelMap = true,
 	},
 	collector = {
 		enabled = true,

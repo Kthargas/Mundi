@@ -38,6 +38,7 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 - Caves (opt-in): scroll in once more at the closest zoom over a cave to open its map, scroll out once more to return. Switching maps from an addon taints the world map, so this is off by default; inside a cave Blizzard's map opens on the cave anyway.
 - Resize grip at the bottom right of the windowed map (window size, not UI scale; right click resets). After resizing, Mundi offers a UI reload so Blizzard applies the size itself without taint.
 - Player and cursor coordinates under the map.
+- Level ranges: next to the zone name under the cursor and in the middle of every zone on a continent map, coloured by your level like quests. Both can be switched off.
 
 ### Addon button collector
 - One classic minimap button with the Mundi logo (or a bag, gears, scroll, map or chest) collects the buttons of other addons (LibDBIcon buttons and other named

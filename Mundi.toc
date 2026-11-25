@@ -3,7 +3,7 @@
 ## Notes: Square, Blizzard-styled minimap and world map tweaks for WoW Forever, with an addon button collector. Formerly SquareMap.
 ## Notes-deDE: Quadratische Minimap und Weltkarten-Verbesserungen im Blizzard-Stil für WoW Forever, mit Sammel-Button für Addon-Buttons. Früher SquareMap.
 ## Author: Kthargas
-## Version: 2.0.0
+## Version: 2.1.0
 ## IconTexture: Interface\AddOns\Mundi\Textures\Icon
 ## SavedVariables: MundiDB, SquareMapDB
 ## AddonCompartmentFunc: Mundi_OnAddonCompartmentClick
@@ -19,4 +19,5 @@ Extras.lua
 Collector.lua
 Layout.lua
 WorldMap.lua
+Levels.lua
 Options.lua
