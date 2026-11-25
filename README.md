@@ -27,6 +27,12 @@ own settings window.
   inside the map.
 - Works with LibDBIcon: addons that are not collected place their buttons on the square edge.
 
+### World map
+
+- Seamless zoom: scroll in past the closest zoom to open the zone, cave or dungeon map under the cursor,
+  scroll out past the widest zoom to go up one map.
+- Scale for the windowed world map; player and cursor coordinates under the map.
+
 ### Addon button collector
 - One classic minimap button collects the buttons of other addons (LibDBIcon buttons and other named
   buttons on the minimap). Map pins of Questie, HandyNotes, GatherMate and similar are left alone.
@@ -46,7 +52,7 @@ own settings window.
 - Auto zoom out after a few seconds.
 - Header (zone, clock, calendar, buttons) only on mouseover; mail stays visible.
 - Lower opacity in combat.
-- Right and middle click on the map: addon button window or just the Blizzard ping.
+- Right and middle click on the map: tracking menu, calendar, world map, addon button window, options or just the Blizzard ping.
 - Key bindings for the addon button window and the options; entry in the addon compartment.
 
 ## Installation

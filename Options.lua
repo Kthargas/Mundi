@@ -135,6 +135,11 @@ function O:Register()
 	self:Checkbox(category, "map", "headerFade", L.HEADER_FADE, L.HEADER_FADE_TT)
 	self:Slider(category, "map", "combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_TT, 0.1, 1, 0.05, Percent)
 
+	Header(layout, L.SECTION_WORLDMAP)
+	self:Checkbox(category, "worldmap", "seamlessZoom", L.WM_ZOOM, L.WM_ZOOM_TT)
+	self:Slider(category, "worldmap", "scale", L.WM_SCALE, L.WM_SCALE_TT, 0.5, 1.5, 0.05, Percent)
+	self:Checkbox(category, "worldmap", "coords", L.WM_COORDS, L.WM_COORDS_TT)
+
 	Header(layout, L.SECTION_CLICKS)
 	local actions = ns.extras and ns.extras.ACTIONS or {}
 	self:Dropdown(category, "map", "rightClick", L.RIGHT_CLICK, nil, actions)
