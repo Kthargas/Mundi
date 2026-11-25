@@ -124,7 +124,6 @@ function O:Register()
 	self:Dropdown(category, "header", "infoRight", L.INFO_RIGHT, nil, infos)
 	self:Checkbox(category, "map", "hideCompartment", L.HIDE_COMPARTMENT, L.HIDE_COMPARTMENT_TT)
 
-	self:CVarCheckbox(category, "rotateMinimap", "SQUAREMAP_CVAR_ROTATE", L.ROTATE, L.ROTATE_TT)
 	self:Dropdown(category, "map", "zoomButtons", L.ZOOM_BUTTONS, L.ZOOM_BUTTONS_TT, {
 		{ key = "HOVER", label = L.ZOOM_HOVER },
 		{ key = "ALWAYS", label = L.ZOOM_ALWAYS },
@@ -142,7 +141,6 @@ function O:Register()
 
 	self:Checkbox(category, "map", "showDiel", L.SHOW_DIEL, L.SHOW_DIEL_TT)
 	self:Checkbox(category, "map", "showInstance", L.SHOW_INSTANCE, L.SHOW_INSTANCE_TT)
-	self:Checkbox(category, "map", "compass", L.COMPASS, L.COMPASS_TT)
 	self:Checkbox(category, "map", "headerFade", L.HEADER_FADE, L.HEADER_FADE_TT)
 	self:Slider(category, "map", "combatAlpha", L.COMBAT_ALPHA, L.COMBAT_ALPHA_TT, 0.1, 1, 0.05, Percent)
 

@@ -157,7 +157,19 @@ local function RefreshMinimapRender()
 	Minimap:SetZoom(zoom)
 end
 
+-- "Rotate minimap" does not work with a square map: the game turns the terrain as a square, so the
+-- corners stay empty. SquareMap keeps north up and switches the Blizzard setting back off.
+function M:KeepNorthUp()
+	if not (GetCVarBool and GetCVarBool("rotateMinimap")) then return end
+	SetCVar("rotateMinimap", "0")
+	if not self.rotateReported then
+		self.rotateReported = true
+		ns.Print(L.ROTATE_OFF)
+	end
+end
+
 function M:ApplyMask()
+	self:KeepNorthUp()
 	Minimap:SetMaskTexture(ns.SQUARE_MASK)
 	-- The quest and archaeology areas are drawn with a round ring by default.
 	if Minimap.SetQuestBlobRingScalar then Minimap:SetQuestBlobRingScalar(0) end
@@ -309,10 +321,6 @@ local function SetHeaderTexture(texture)
 	end
 end
 
-local function AtlasExists(name)
-	return name and C_Texture and C_Texture.GetAtlasInfo(name) ~= nil
-end
-
 -- Bare icons (no plate or frame), first one that exists in this client wins.
 local function CalendarDay()
 	local day = _G.GameTimeFrame and _G.GameTimeFrame.calendarDay
@@ -323,6 +331,12 @@ local function CalendarDay()
 	return day or tonumber(date("%d")) or 1
 end
 
+-- Bare icons for the fields, first one that exists in this client wins.
+local function DayIcon()
+	local day = C_DateAndTime and C_DateAndTime.IsDayTime and C_DateAndTime.IsDayTime()
+	return day == false and "UI-HUD-Minimap-NightCycle" or "UI-HUD-Minimap-DayCycle"
+end
+
 local ICONS = {
 	tracking = function() return { atlas = { "ui-hud-minimap-tracking-up", "common-search-magnifyingglass" }, file = "Interface\\Common\\UI-Searchbox-Icon" } end,
 	calendar = function()
@@ -330,14 +344,33 @@ local ICONS = {
 		return { atlas = { ("ui-hud-calendar-%d-up"):format(day) }, file = "Interface\\Calendar\\UI-Calendar-Button",
 			coords = { 0, 0.390625, 0, 0.78125 }, day = day }
 	end,
+	-- Sun or moon without Blizzard's ring around it: the middle of the picture, cut round.
+	diel = function() return { atlas = { DayIcon() }, crop = 0.18, round = true } end,
+	collector = function()
+		local C = ns.collector
+		local texture = C and C.ICONS and C.ICONS[1] and C.ICONS[1].texture
+		for _, info in ipairs(C and C.ICONS or {}) do
+			if info.key == ns.db.collector.icon then texture = info.texture end
+		end
+		return { file = texture, coords = { 0.08, 0.92, 0.08, 0.92 }, round = true, inset = 1 }
+	end,
 }
 M.FIELD_ATLASES = { "ui-hud-minimap-tracking-up", "common-search-magnifyingglass", "ui-hud-calendar-1-up" }
 
 local function SetIcon(texture, spec)
 	texture:SetTexCoord(0, 1, 0, 1)
 	for _, atlas in ipairs(spec.atlas or {}) do
-		if AtlasExists(atlas) then
-			texture:SetAtlas(atlas)
+		local info = AtlasExists(atlas) and C_Texture.GetAtlasInfo(atlas)
+		if info then
+			if spec.crop and info.file and info.leftTexCoord then
+				-- Part of the atlas only: from its file with the coordinates moved inwards.
+				local l, r, t, b = info.leftTexCoord, info.rightTexCoord, info.topTexCoord, info.bottomTexCoord
+				local cx, cy = (r - l) * spec.crop, (b - t) * spec.crop
+				texture:SetTexture(info.file)
+				texture:SetTexCoord(l + cx, r - cx, t + cy, b - cy)
+			else
+				texture:SetAtlas(atlas)
+			end
 			return true
 		end
 	end
@@ -346,24 +379,15 @@ local function SetIcon(texture, spec)
 	return false
 end
 
--- The art of a function's own button, hidden while it sits in a field.
+-- What a function's own frame draws; hidden while it sits in a field (the frame stays for the clicks).
 local function OwnArt(key, frame)
 	if key == "tracking" then
 		local button = frame.Button
 		return { frame.Background, button and button.StateTexture, button and button.AddTexture }
 	end
 	if key == "calendar" or key == "compartment" then return { frame.StateTexture, frame.AddTexture } end
-	if key == "collector" then return { frame.border, frame.background } end
-	if key == "diel" then
-		if not M.dielRing then
-			for _, region in ipairs({ frame:GetRegions() }) do
-				if region ~= frame.Background and region.GetObjectType and region:GetObjectType() == "Texture" then
-					M.dielRing = region
-				end
-			end
-		end
-		return { M.dielRing }
-	end
+	if key == "collector" then return { frame.border, frame.background, frame.icon, frame.count } end
+	if key == "diel" then return { frame } end
 	return {}
 end
 
@@ -379,114 +403,161 @@ local function ShowArt(key, frame)
 	end
 end
 
--- Our bare icon on a Blizzard button, with a hover glow like Blizzard's own.
-function M:GetFieldIcon(key, frame)
-	self.fieldIcons = self.fieldIcons or {}
-	local icon = self.fieldIcons[key]
-	if icon then return icon end
-	local host = key == "tracking" and frame.Button or frame
-	icon = host:CreateTexture(nil, "ARTWORK", nil, 2)
-	icon:SetPoint("CENTER")
-	local glow = host:CreateTexture(nil, "HIGHLIGHT")
-	glow:SetAllPoints(icon)
-	glow:SetBlendMode("ADD")
-	glow:SetAlpha(0.35)
-	icon.glow = glow
-	local day = host:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	day:SetPoint("CENTER", icon, "CENTER", 0, -1)
-	icon.day = day
-	self.fieldIcons[key] = icon
-	return icon
-end
-
-function M:UpdateFieldIcon(key, frame, size)
-	local spec = ICONS[key] and ICONS[key]()
-	local icon = (spec or (self.fieldIcons and self.fieldIcons[key])) and self:GetFieldIcon(key, frame)
-	if not icon then return end
-	if not spec then
-		icon:Hide()
-		icon.glow:Hide()
-		icon.day:Hide()
-		return
-	end
-	local isAtlas = SetIcon(icon, spec)
-	SetIcon(icon.glow, spec)
-	icon:SetSize(size, size)
-	icon:Show()
-	icon.glow:Show()
-	-- The plain calendar texture has no day number; Blizzard's calendar atlases do.
-	icon.day:SetShown(spec.day ~= nil and not isAtlas)
-	icon.day:SetText(spec.day or "")
-end
-
-local function ClearFieldIcon(self, key)
-	local icon = self.fieldIcons and self.fieldIcons[key]
-	if icon then
-		icon:Hide()
-		icon.glow:Hide()
-		icon.day:Hide()
-	end
-end
-
--- Blizzard puts the button art back on every hover and click.
+-- Blizzard puts the button art back on every hover and click; the field glows while the mouse is over
+-- the function's frame.
 function M:HookFieldArt()
 	if self.fieldArtHooked then return end
 	self.fieldArtHooked = true
-	local function hook(key, frame)
-		if frame and frame.OnButtonStateChanged then
+	local cluster = MinimapCluster
+	local function hook(key, frame, mouse)
+		if not frame then return end
+		if frame.OnButtonStateChanged then
 			hooksecurefunc(frame, "OnButtonStateChanged", function()
 				if M:IsDocked(key) then HideArt(key, DockFrame(key)) end
 			end)
 		end
+		frame:HookScript("OnEnter", function() M:SetFieldGlow(key, true) end)
+		frame:HookScript("OnLeave", function() M:SetFieldGlow(key, false) end)
 	end
-	local cluster = MinimapCluster
 	hook("tracking", cluster and cluster.Tracking and cluster.Tracking.Button)
 	hook("calendar", _G.GameTimeFrame)
 	hook("compartment", _G.AddonCompartmentFrame)
+	hook("collector", ns.collector and ns.collector.button)
 end
 
--- Scales day/night and the collector button to the field; Blizzard's buttons have the header size already.
-local SCALED = { diel = true, collector = true }
+function M:SetFieldGlow(key, on)
+	for side, field in pairs(self.fields or {}) do
+		if field.glow then field.glow:SetShown(on and self:GetField(side) == key) end
+	end
+end
+
+-- One square field with a small frame in the map's border style around it.
+local FIELD_BORDER_SCALE = 0.33
+
+function M:GetFieldFrame(zone, side)
+	self.fields = self.fields or {}
+	local field = self.fields[side]
+	if field then return field end
+	field = CreateFrame("Frame", nil, zone)
+	local icon = field:CreateTexture(nil, "ARTWORK")
+	icon:SetPoint("CENTER")
+	field.icon = icon
+	local glow = field:CreateTexture(nil, "OVERLAY")
+	glow:SetAllPoints(icon)
+	glow:SetBlendMode("ADD")
+	glow:SetAlpha(0.35)
+	glow:Hide()
+	field.glow = glow
+	local mask = field:CreateMaskTexture()
+	mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+	mask:SetAllPoints(icon)
+	field.mask = mask
+	local day = field:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	day:SetPoint("CENTER", icon, "CENTER", 0, -1)
+	field.day = day
+	field.border = CreateFrame("Frame", nil, field)
+	field.lines = {}
+	for i = 1, 4 do
+		local line = field:CreateTexture(nil, "OVERLAY")
+		line:SetColorTexture(0, 0, 0, 0.9)
+		field.lines[i] = line
+	end
+	field.lines[1]:SetPoint("TOPLEFT") field.lines[1]:SetPoint("TOPRIGHT") field.lines[1]:SetHeight(1)
+	field.lines[2]:SetPoint("BOTTOMLEFT") field.lines[2]:SetPoint("BOTTOMRIGHT") field.lines[2]:SetHeight(1)
+	field.lines[3]:SetPoint("TOPLEFT") field.lines[3]:SetPoint("BOTTOMLEFT") field.lines[3]:SetWidth(1)
+	field.lines[4]:SetPoint("TOPRIGHT") field.lines[4]:SetPoint("BOTTOMRIGHT") field.lines[4]:SetWidth(1)
+	self.fields[side] = field
+	return field
+end
+
+function M:ApplyFieldBorder(field)
+	local style = self:GetBorderStyle(ns.db.map.border)
+	local layout = GetLayout(style)
+	local border = field.border
+	for _, name in ipairs(PIECES) do
+		if border[name] then border[name]:Hide() end
+	end
+	for _, line in ipairs(field.lines) do line:SetShown(not layout) end
+	if not layout then
+		border:Hide()
+		return
+	end
+	border:SetScale(FIELD_BORDER_SCALE)
+	local pad = style.pad or 0
+	border:ClearAllPoints()
+	border:SetPoint("TOPLEFT", field, "TOPLEFT", -pad, pad)
+	border:SetPoint("BOTTOMRIGHT", field, "BOTTOMRIGHT", pad, -pad)
+	NineSliceUtil.ApplyLayout(border, layout)
+	for name in pairs(layout) do
+		if border[name] and border[name].Show then border[name]:Show() end
+	end
+	border:Show()
+end
+
+function M:UpdateFieldIcon(field, key, size)
+	local spec = ICONS[key] and ICONS[key]()
+	local icon = field.icon
+	if field.masked then
+		icon:RemoveMaskTexture(field.mask)
+		field.glow:RemoveMaskTexture(field.mask)
+		field.masked = nil
+	end
+	if not spec then
+		icon:Hide()
+		field.day:Hide()
+		return
+	end
+	local isAtlas = SetIcon(icon, spec)
+	SetIcon(field.glow, spec)
+	local iconSize = size - (ICON_INSET + (spec.inset or 0)) * 2
+	icon:SetSize(iconSize, iconSize)
+	if spec.round then
+		icon:AddMaskTexture(field.mask)
+		field.glow:AddMaskTexture(field.mask)
+		field.masked = true
+	end
+	icon:Show()
+	-- The plain calendar texture has no day number; Blizzard's calendar atlases do.
+	field.day:SetShown(spec.day ~= nil and not isAtlas)
+	field.day:SetText(spec.day or "")
+end
+
+-- The collector button is the addon's own: in a field it moves into the header (it belongs to the map
+-- otherwise), so it is on top of the header for the mouse.
+local function SetCollectorParent(frame, parent)
+	if frame:GetParent() ~= parent then frame:SetParent(parent) end
+end
 
 function M:PlaceField(zone, side, size)
-	self.fieldAnchors = self.fieldAnchors or {}
-	local anchor = self.fieldAnchors[side]
-	if not anchor then
-		anchor = CreateFrame("Frame", nil, zone)
-		self.fieldAnchors[side] = anchor
-		local divider = zone:CreateTexture(nil, "ARTWORK")
-		divider:SetColorTexture(1, 0.82, 0, 0.3)
-		anchor.divider = divider
-	end
-	anchor:ClearAllPoints()
-	anchor:SetSize(size, size)
+	local field = self:GetFieldFrame(zone, side)
+	field:ClearAllPoints()
+	field:SetSize(size, size)
+	field:SetFrameLevel(zone:GetFrameLevel() + 1)
 	if side == "LEFT" then
-		anchor:SetPoint("LEFT", zone, "LEFT", 0, 0)
+		field:SetPoint("LEFT", zone, "LEFT", 0, 0)
 	else
-		anchor:SetPoint("RIGHT", zone, "RIGHT", 0, 0)
+		field:SetPoint("RIGHT", zone, "RIGHT", 0, 0)
 	end
 	local key = self:GetField(side)
 	local frame = key and DockFrame(key)
 	local used = frame and IsActive(key, frame) and not (InCombatLockdown() and frame:IsProtected())
-	anchor.divider:ClearAllPoints()
-	anchor.divider:SetSize(1, size - 8)
-	anchor.divider:SetPoint("CENTER", anchor, side == "LEFT" and "RIGHT" or "LEFT", 0, 0)
-	anchor.divider:SetShown(used and true or false)
+	field:SetShown(used and true or false)
 	if not used then return 0 end
 
-	local h = frame:GetHeight()
-	if key == "tracking" and frame.Button then h = frame.Button:GetHeight() end
-	if SCALED[key] and h and h > 0 then
-		local parent = frame:GetParent()
-		local parentScale = parent and parent:GetEffectiveScale() or 1
-		frame:SetScale(size * zone:GetEffectiveScale() / (h * parentScale))
-	end
-	frame:ClearAllPoints()
-	frame:SetPoint("CENTER", anchor, "CENTER", 0, 0)
-	frame:SetFrameLevel(zone:GetFrameLevel() + 2)
+	self:ApplyFieldBorder(field)
+	self:UpdateFieldIcon(field, key, size)
 	HideArt(key, frame)
-	local iconSize = (size - ICON_INSET * 2) * zone:GetEffectiveScale() / frame:GetEffectiveScale()
-	self:UpdateFieldIcon(key, frame, iconSize)
+	if key ~= "diel" then
+		-- The function's own frame stays on the field, invisible, for clicks and tooltip.
+		if key == "collector" then
+			SetCollectorParent(frame, field)
+			local h = frame:GetHeight()
+			if h and h > 0 then frame:SetScale(size / h) end
+		end
+		frame:ClearAllPoints()
+		frame:SetPoint("CENTER", field, "CENTER", 0, 0)
+		frame:SetFrameLevel(field:GetFrameLevel() + 3)
+	end
 	return size
 end
 
@@ -500,8 +571,12 @@ function M:PlaceFree(zone)
 		local docked = self:IsDocked(key)
 		if frame and not docked and self.wasDocked[key] then
 			ShowArt(key, frame)
-			ClearFieldIcon(self, key)
-			if key == "collector" then frame:SetScale(1) frame:SetAlpha(1) end
+			if key == "collector" then
+				SetCollectorParent(frame, Minimap)
+				frame:SetScale(1)
+				frame:SetAlpha(1)
+				if ns.collector.UpdateButton then ns.collector:UpdateButton() end
+			end
 		end
 		self.wasDocked[key] = docked
 	end
@@ -838,24 +913,28 @@ function M:WatchHeaderButtons()
 		end
 	end
 	self.relayout = relayout
+	-- Day turns to night, a new calendar day: the field icons follow.
+	local watcher = CreateFrame("Frame")
+	local elapsed, lastDay = 0, nil
+	watcher:RegisterEvent("DIEL_CYCLE_CHANGED")
+	watcher:SetScript("OnEvent", relayout)
+	watcher:SetScript("OnUpdate", function(_, dt)
+		elapsed = elapsed + dt
+		if elapsed < 30 then return end
+		elapsed = 0
+		local day = CalendarDay()
+		if lastDay and day ~= lastDay then relayout() end
+		lastDay = day
+	end)
 end
 
 function M:ApplyDiel()
 	local diel = MinimapCluster and MinimapCluster.DielFrame
 	if not diel then return end
 	diel:SetShown(ns.db.map.showDiel)
-	if self:IsDocked("diel") then
-		self.dielDocked = true
-		return
-	end
-	-- Back to Blizzard's counter-scale and ring after leaving the header.
-	if self.dielDocked then
-		self.dielDocked = nil
-		local container = MinimapCluster.MinimapContainer
-		local scale = container and container:GetScale() or 1
-		diel:SetScale(1 / ((scale and scale > 0) and scale or 1))
-		diel:SetAlpha(1)
-	end
+	-- In a header field the field shows the sun or moon; Blizzard's frame (with its ring) stays hidden.
+	if self:IsDocked("diel") then return end
+	diel:SetAlpha(1)
 	diel:ClearAllPoints()
 	-- The day/night frame is counter-scaled by Blizzard, so offsets are in its own units.
 	local w, h = diel:GetSize()
@@ -942,6 +1021,11 @@ function M:HookBlizzard()
 			SetHeaderTexture(self.StateTexture)
 			SetHeaderTexture(self.AddTexture)
 		end)
+	end
+	if CVarCallbackRegistry and CVarCallbackRegistry.RegisterCallback then
+		CVarCallbackRegistry:RegisterCallback("rotateMinimap", function()
+			C_Timer.After(0, function() M:KeepNorthUp() end)
+		end, M)
 	end
 	for _, method in ipairs({ "UpdateMinimapConfig", "SetHeaderUnderneath", "SetEditModeScale", "ApplyExternalEventURLButtonAnchor" }) do
 		if cluster[method] then hooksecurefunc(cluster, method, reapply) end
