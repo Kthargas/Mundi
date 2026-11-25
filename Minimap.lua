@@ -269,10 +269,10 @@ function M:ApplyHeader()
 	container:ClearAllPoints()
 	zone:ClearAllPoints()
 	if db.headerPos == "BELOW" then
-		container:SetPoint("TOP", cluster, "TOP", 10 / scale, (margin - extent))
+		container:SetPoint("TOP", cluster, "TOP", 0, (margin - extent))
 		zone:SetPoint("TOP", Minimap, "BOTTOM", 0, -edge)
 	else
-		container:SetPoint("TOP", cluster, "TOP", 10 / scale, -(zoneHeight + gap) / scale + (margin - extent))
+		container:SetPoint("TOP", cluster, "TOP", 0, -(zoneHeight + gap) / scale + (margin - extent))
 		zone:SetPoint("BOTTOM", Minimap, "TOP", 0, edge)
 	end
 
@@ -315,6 +315,34 @@ function M:ApplyBackdropButtons()
 	end
 end
 
+-- The cluster is the frame Edit Mode selects and moves. Blizzard sizes it for the round map (256 x 256);
+-- make it hug the square map and its header so the selection box matches what you see.
+local CLUSTER_PAD = 2
+function M:ApplyClusterSize()
+	local cluster = MinimapCluster
+	local container, zone = cluster and cluster.MinimapContainer, cluster and cluster.ZoneTextButton
+	if not (container and zone) then return end
+	if InCombatLockdown() and cluster:IsProtected() then return end
+	local db = ns.db.map
+	local scale = container:GetScale()
+	if not scale or scale <= 0 then scale = 1 end
+	local extent = self:GetBorderExtent()
+	local mapOuter = (db.size + extent * 2) * scale
+	local zoneScale = zone:GetScale() or 1
+	local width = math.max(mapOuter, (zone:GetWidth() + 50) * zoneScale)
+	local height = zone:GetHeight() * zoneScale + (db.headerGap or 0) + mapOuter
+
+	-- Coordinates under the map (or under a header below the map) hang outside the frame.
+	local coords = container.PlayerCoords
+	if db.coordsPos == "BELOW" and coords and coords:IsShown() then
+		height = height + (coords:GetHeight() + 3) * scale
+	end
+
+	self.sizingCluster = true
+	cluster:SetSize(width + CLUSTER_PAD * 2, height + CLUSTER_PAD)
+	self.sizingCluster = nil
+end
+
 function M:Apply()
 	if not self.ready then return end
 	if InCombatLockdown() and (Minimap:IsProtected() or MinimapCluster:IsProtected()) then
@@ -329,6 +357,7 @@ function M:Apply()
 	self:ApplyCoords()
 	self:ApplyDiel()
 	self:ApplyBackdropButtons()
+	self:ApplyClusterSize()
 	EventRegistry:TriggerEvent("SquareMap.LayoutChanged")
 end
 
@@ -346,6 +375,13 @@ function M:HookBlizzard()
 	local function reapply() M:Reapply() end
 	for _, method in ipairs({ "UpdateMinimapConfig", "SetHeaderUnderneath", "SetEditModeScale", "ApplyExternalEventURLButtonAnchor" }) do
 		if cluster[method] then hooksecurefunc(cluster, method, reapply) end
+	end
+
+	-- The cluster is a ResizeLayoutFrame: whenever Blizzard re-lays it out, it grows back to the round size.
+	if cluster.Layout then
+		hooksecurefunc(cluster, "Layout", function()
+			if not M.sizingCluster then M:ApplyClusterSize() end
+		end)
 	end
 
 	local landing = _G.ExpansionLandingPageMinimapButton
@@ -384,6 +420,7 @@ function M:HookBlizzard()
 	end)
 
 	if EventRegistry and EventRegistry.RegisterCallback then
+		EventRegistry:RegisterCallback("EditMode.Enter", reapply, M)
 		EventRegistry:RegisterCallback("EditMode.Exit", reapply, M)
 	end
 end

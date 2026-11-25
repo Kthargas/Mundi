@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2 - 2026-11-25
+
+- Fixed: in Edit Mode the selection box was much larger than the square map, and the map sat off center. The minimap frame now hugs the map and its header, and the map is centered in it.
+
 ## 1.0.1 - 2026-11-25
 
 - Fixed: the addon button window stayed empty. LibDBIcon pins its buttons to a fixed strata, so they were drawn behind the window.
