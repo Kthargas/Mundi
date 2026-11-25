@@ -9,7 +9,7 @@
 ## AddonCompartmentFunc: Mundi_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: Mundi_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: Mundi_OnAddonCompartmentLeave
-## X-Website: https://github.com/Kthargas/squaremap
+## X-Website: https://github.com/Kthargas/mundi
 ## X-License: MIT
 
 Locales.lua
