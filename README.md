@@ -42,10 +42,10 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 - Level ranges: next to the zone name under the cursor and in the middle of every zone on a continent map, coloured by your level like quests. Both can be switched off.
 
 ### Resource alert (opt-in)
-- Sound and message when the minimap shows a herb, an ore or anything else your tracking finds (Find Minerals, Find Herbs, ...), with the direction (north, southeast, ...).
-- The game gives addons no access to minimap blips, so Mundi reads the minimap's own tooltip: for a few frames the map is made invisible and moved under the mouse cursor. **The map blinks briefly while it scans.** It only scans while the cursor rests on the game world, never in combat or while the mouse turns the camera, and by default only while you move.
-- Fast (shrinks the map for the scan) or thorough method, scan interval, sound, message on screen or in chat, repeat time.
-- Report everything except your group, or only names from a list: `/mundi alert add Mithril`, `/mundi alert ignore <name>`, `/mundi alert list`. `/mundi alert test` scans once and prints every name it reads.
+- Sound and message when the minimap shows a herb, an ore or a treasure your tracking finds (Find Herbs, Find Minerals, Find Treasure), with the direction (north, southeast, ...).
+- The game has no list of the tracking dots, so Mundi asks the minimap what lies under every point of the map (`Minimap:UpdateMouseoverAtPoint` and `C_TooltipInfo.GetMinimapMouseover`), a few dozen points per frame. The map does not move and the mouse is untouched. It only scans while one of the finders is on and not in combat, by default only while you move.
+- Scan interval, sound, message on screen or in chat, repeat time.
+- Report everything except your group and quest progress, or only names from a list: `/mundi alert add Mithril`, `/mundi alert ignore <name>`, `/mundi alert list`. `/mundi alert test` scans once and prints every name it reads.
 
 ### Addon button collector
 - One classic minimap button with the Mundi logo (or a bag, gears, scroll, map or chest) collects the buttons of other addons (LibDBIcon buttons and other named

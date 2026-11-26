@@ -218,10 +218,6 @@ function O:BuildAlert(category, layout)
 	local function Dep(init) DependsOn(init, enableInit, Enabled) return init end
 	Dep(self:Checkbox(category, "alert", "onlyMoving", L.ALERT_MOVING, L.ALERT_MOVING_TT))
 	Dep(self:Slider(category, "alert", "interval", L.ALERT_INTERVAL, L.ALERT_INTERVAL_TT, 1, 10, 1, Seconds))
-	Dep(self:Dropdown(category, "alert", "mode", L.ALERT_MODE, L.ALERT_MODE_TT, {
-		{ key = "FAST", label = L.ALERT_MODE_FAST },
-		{ key = "FULL", label = L.ALERT_MODE_FULL },
-	}))
 
 	Header(layout, L.SECTION_ALERT_OUTPUT)
 	Dep(self:Dropdown(category, "alert", "sound", L.ALERT_SOUND, nil, ns.alert.SOUNDS))
