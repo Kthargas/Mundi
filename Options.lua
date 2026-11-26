@@ -99,6 +99,7 @@ function O:Register()
 	Sub(L.SECTION_HEADER, O.BuildHeader)
 	Sub(L.SECTION_COLLECTOR, O.BuildCollector)
 	Sub(L.SECTION_WORLDMAP, O.BuildWorldMap)
+	Sub(L.SECTION_ALERT, O.BuildAlert)
 
 	Settings.RegisterAddOnCategory(category)
 	-- Taint: the settings list reuses its control frames for every category. A button control first
@@ -210,6 +211,29 @@ function O:BuildWorldMap(category, layout)
 	self:CVarCheckbox(category, "mapFade", "MUNDI_CVAR_MAPFADE", L.WM_FADE, L.WM_FADE_TT)
 end
 
+function O:BuildAlert(category, layout)
+	Header(layout, L.SECTION_ALERT)
+	local enableInit = self:Checkbox(category, "alert", "enabled", L.ALERT_ENABLE, L.ALERT_ENABLE_TT)
+	local function Enabled() return ns.db.alert.enabled end
+	local function Dep(init) DependsOn(init, enableInit, Enabled) return init end
+	Dep(self:Checkbox(category, "alert", "onlyMoving", L.ALERT_MOVING, L.ALERT_MOVING_TT))
+	Dep(self:Slider(category, "alert", "interval", L.ALERT_INTERVAL, L.ALERT_INTERVAL_TT, 1, 10, 1, Seconds))
+	Dep(self:Dropdown(category, "alert", "mode", L.ALERT_MODE, L.ALERT_MODE_TT, {
+		{ key = "FAST", label = L.ALERT_MODE_FAST },
+		{ key = "FULL", label = L.ALERT_MODE_FULL },
+	}))
+
+	Header(layout, L.SECTION_ALERT_OUTPUT)
+	Dep(self:Dropdown(category, "alert", "sound", L.ALERT_SOUND, nil, ns.alert.SOUNDS))
+	Dep(self:Checkbox(category, "alert", "screen", L.ALERT_SCREEN, L.ALERT_SCREEN_TT))
+	Dep(self:Checkbox(category, "alert", "chat", L.ALERT_CHAT, nil))
+	Dep(self:Slider(category, "alert", "repeatAfter", L.ALERT_REPEAT, L.ALERT_REPEAT_TT, 10, 120, 5, Seconds))
+	Dep(self:Dropdown(category, "alert", "filter", L.ALERT_FILTER, L.ALERT_FILTER_TT, {
+		{ key = "ALL", label = L.ALERT_FILTER_ALL },
+		{ key = "LIST", label = L.ALERT_FILTER_LIST },
+	}))
+end
+
 -- Actions page: same look as Fray's (title, divider, sections with a label, a button and a note per row).
 function O:CreateActionsPanel()
 	local panel = CreateFrame("Frame")
@@ -255,6 +279,9 @@ function O:CreateActionsPanel()
 	Section(L.SECTION_COLLECTOR)
 	Row(L.MANAGE, L.MANAGE_BTN, L.MANAGE_TT, function() ns.collector:ShowManager() end)
 	Row(L.SORT_RESET, L.SORT_RESET_BTN, L.SORT_RESET_TT, function() ns.collector:ResetOrder() end)
+
+	Section(L.SECTION_ALERT)
+	Row(L.ALERT_TEST, L.ALERT_TEST_BTN, L.ALERT_TEST_TT, function() ns.alert:Test() end)
 
 	Section(L.SECTION_DATA)
 	Row(L.RESET_ALL, L.RESET_ALL_BTN, L.RESET_ALL_TT, function() StaticPopup_Show("MUNDI_RESET") end)

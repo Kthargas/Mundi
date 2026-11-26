@@ -25,6 +25,19 @@ globals = {
 
 -- Game API used by this addon
 read_globals = {
+	"WorldFrame",
+	"UnitIsDeadOrGhost",
+	"SpellIsTargeting",
+	"RaidWarningFrame",
+	"RaidNotice_AddMessage",
+	"IsPlayerMoving",
+	"IsMouselooking",
+	"IsInRaid",
+	"GetUnitSpeed",
+	"GetMouseFocus",
+	"GetMouseFoci",
+	"GetCursorInfo",
+	"ChatTypeInfo",
 	"BACKPACK_TOOLTIP",
 	"ButtonFrameTemplate_HideAttic",
 	"ButtonFrameTemplate_HideButtonBar",

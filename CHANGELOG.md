@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 - 2026-11-26
+
+### Resource alert
+- New, off by default: sound and message (screen or chat) when the minimap shows a herb, an ore or anything else your tracking finds, with its direction.
+- Reads the minimap's tooltip by moving the invisible map under the cursor for a few frames, so the map blinks briefly. Only while the cursor rests on the game world, never in combat or during mouselook, by default only while moving.
+- Options page "Resource alert" (method, interval, sound, repeat time, filter) and `/mundi alert` (on/off, `add`, `remove`, `ignore`, `unignore`, `list`, `test`).
+
 ## 1.0.0 - 2026-11-25
 
 First release.
