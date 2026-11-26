@@ -61,12 +61,11 @@ ns.DEFAULTS = {
 		infoCenter = "NONE",
 		infoRight = "CLOCK",
 	},
-	-- Resource alert (Alert.lua): off by default, since scanning makes the map blink.
+	-- Resource alert (Alert.lua), off by default.
 	alert = {
 		enabled = false,
 		onlyMoving = true,
 		interval = 2,
-		mode = "FAST",
 		sound = "RAID_WARNING",
 		screen = true,
 		chat = false,
@@ -74,7 +73,6 @@ ns.DEFAULTS = {
 		filter = "ALL",
 		names = {},
 		ignore = {},
-		frames = 1,
 	},
 	layout = {
 		snap = true,

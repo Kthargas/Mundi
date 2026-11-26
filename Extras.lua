@@ -150,8 +150,6 @@ function E:CreateFader()
 		if elapsed < 0.05 then return end
 		local step = elapsed * 4
 		elapsed = 0
-		-- The resource alert moves the map under the cursor for a moment; that is not a hover.
-		if ns.alertScanning then return end
 		local over = MinimapCluster:IsMouseOver() or Minimap:IsMouseOver()
 			or (ns.collector and ns.collector:IsWindowMouseOver())
 		local target = over and 1 or 0
