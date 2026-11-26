@@ -22,7 +22,7 @@ still moves and scales the minimap.
 
 The only own file is the Mundi logo. The frame is drawn from Blizzard's own nine-slice art (the same pieces used by
 dialogs, tooltips and panels), the windows use Blizzard's frame templates and the options live in the game's
-own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addon buttons, World map, Resource alert and Actions).
+own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addon buttons, World map and Actions).
 
 ### Minimap
 - Square map, size 140 to 400 pixels.
@@ -40,12 +40,6 @@ own settings window (Esc > Options > AddOns > Mundi, with the pages Header, Addo
 - Player and cursor coordinates under the map.
 - Fade the map while moving (Blizzard's setting, reachable from Mundi's options).
 - Level ranges: next to the zone name under the cursor and in the middle of every zone on a continent map, coloured by your level like quests. Both can be switched off.
-
-### Resource alert (opt-in)
-- Sound and message when the minimap shows a herb, an ore or a treasure your tracking finds (Find Herbs, Find Minerals, Find Treasure), with the direction (north, southeast, ...).
-- The game has no list of the tracking dots, so Mundi asks the minimap what lies under every point of the map (`Minimap:UpdateMouseoverAtPoint` and `C_TooltipInfo.GetMinimapMouseover`), a few dozen points per frame. The map does not move and the mouse is untouched. It only scans while one of the finders is on and not in combat, by default only while you move.
-- Scan interval, sound, message on screen or in chat, repeat time.
-- Report everything except your group and quest progress, or only names from a list: `/mundi alert add Mithril`, `/mundi alert ignore <name>`, `/mundi alert list`. `/mundi alert test` scans once and prints every name it reads.
 
 ### Addon button collector
 - One classic minimap button with the Mundi logo (or a bag, gears, scroll, map or chest) collects the buttons of other addons (LibDBIcon buttons and other named
@@ -84,7 +78,6 @@ Copy this folder into `World of Warcraft\_forever_\Interface\AddOns\` and name i
 | Command | What it does |
 | --- | --- |
 | `/mundi` | Open the options (Esc > Options > AddOns > Mundi) |
-| `/mundi alert` | Resource alert on or off; `add`, `remove`, `ignore`, `unignore`, `list`, `test` (see `/mundi alert help`) |
 | `/mundi help` | List all commands |
 | `/mundi layout` | Open the layout editor |
 | `/mundi buttons` | Show or hide the addon button window |

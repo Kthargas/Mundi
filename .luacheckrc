@@ -25,14 +25,6 @@ globals = {
 
 -- Game API used by this addon
 read_globals = {
-	"C_TooltipInfo",
-	"C_Minimap",
-	"RaidWarningFrame",
-	"RaidNotice_AddMessage",
-	"IsPlayerMoving",
-	"IsInRaid",
-	"GetUnitSpeed",
-	"ChatTypeInfo",
 	"BACKPACK_TOOLTIP",
 	"ButtonFrameTemplate_HideAttic",
 	"ButtonFrameTemplate_HideButtonBar",
