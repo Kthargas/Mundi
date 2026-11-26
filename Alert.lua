@@ -276,6 +276,60 @@ function A:Test()
 	self:StartScan(true)
 end
 
+-- Diagnosis for "/mundi alert debug": three seconds after the command, with the real mouse resting on a
+-- dot, prints what the minimap answers for the real mouse and for virtual probes at the same spot.
+local function Lines(data)
+	if data == nil then return "nil" end
+	if Secret(data) then return "secret" end
+	local lines = data.lines
+	if not lines then return "no lines" end
+	if Secret(lines) then return "secret lines" end
+	local out = {}
+	for _, line in ipairs(lines) do
+		local text = line.leftText
+		out[#out + 1] = Secret(text) and "secret" or tostring(text):gsub("\n", " / ")
+	end
+	return #out > 0 and table.concat(out, " | ") or "0 lines"
+end
+
+function A:Debug()
+	ns.Print(L.ALERT_DEBUG_START)
+	C_Timer.After(3, function()
+		local p = function(...) print("  |cffffd100Mundi|r", ...) end
+		p("API:", tostring(Minimap.UpdateMouseoverAtPoint ~= nil), tostring(Minimap.SetUsingSoftCursor ~= nil),
+			tostring(C_TooltipInfo and C_TooltipInfo.GetMinimapMouseover ~= nil), "finder:", tostring(FinderOn()))
+		local left, bottom = Minimap:GetLeft(), Minimap:GetBottom()
+		local scale = Minimap:GetEffectiveScale()
+		p(("map left %.1f bottom %.1f size %.1f x %.1f scale %.3f ui %.3f"):format(left or -1, bottom or -1,
+			Minimap:GetWidth(), Minimap:GetHeight(), scale, UIParent:GetEffectiveScale()))
+		local cx, cy = GetCursorPosition()
+		local lx, ly = cx / scale - (left or 0), cy / scale - (bottom or 0)
+		p(("cursor %.1f, %.1f -> map %.1f, %.1f  over map: %s"):format(cx, cy, lx, ly, tostring(Minimap:IsMouseOver())))
+		p("real mouse:", Lines(C_TooltipInfo.GetMinimapMouseover()))
+		local shown = GameTooltip:IsShown() and _G.GameTooltipTextLeft1 and _G.GameTooltipTextLeft1:GetText()
+		p("GameTooltip:", shown and not Secret(shown) and tostring(shown):gsub("\n", " / ") or "-")
+		if not Minimap.UpdateMouseoverAtPoint then return end
+		local function Try(label, x, y, soft)
+			if soft then Minimap:SetUsingSoftCursor(true) end
+			local ok, err = pcall(Minimap.UpdateMouseoverAtPoint, Minimap, x, y)
+			local now = ok and Lines(C_TooltipInfo.GetMinimapMouseover()) or ("error " .. tostring(err))
+			if soft then Minimap:SetUsingSoftCursor(false) end
+			p(label, now)
+		end
+		Try("probe soft (cursor):", cx, cy, true)
+		Try("probe hard (cursor):", cx, cy, false)
+		Try("probe soft (ui units):", cx / UIParent:GetEffectiveScale(), cy / UIParent:GetEffectiveScale(), true)
+		Try("probe soft (map local):", lx, ly, true)
+		-- Some answers only arrive a frame later.
+		Minimap:SetUsingSoftCursor(true)
+		Minimap:UpdateMouseoverAtPoint(cx, cy)
+		C_Timer.After(0, function()
+			p("probe soft, next frame:", Lines(C_TooltipInfo.GetMinimapMouseover()))
+			Minimap:SetUsingSoftCursor(false)
+		end)
+	end)
+end
+
 local function FindEntry(list, name)
 	local lower = name:lower()
 	for i, entry in ipairs(list) do
@@ -307,6 +361,8 @@ function A:Command(rest)
 		ns.Print(L.ALERT_IGNORE_LIST:format(#db.ignore > 0 and table.concat(db.ignore, ", ") or L.ALERT_EMPTY))
 	elseif sub == "test" then
 		self:Test()
+	elseif sub == "debug" then
+		self:Debug()
 	else
 		ns.Print(L.ALERT_HELP_TITLE)
 		for _, c in ipairs({
@@ -317,6 +373,7 @@ function A:Command(rest)
 			{ " unignore <Name>", L.ALERT_CMD_UNIGNORE },
 			{ " list", L.ALERT_CMD_LIST },
 			{ " test", L.ALERT_CMD_TEST },
+			{ " debug", L.ALERT_CMD_DEBUG },
 		}) do
 			print(("  |cffffd100/mundi alert%s|r - %s"):format(c[1], c[2]))
 		end
