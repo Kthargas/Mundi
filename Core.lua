@@ -61,6 +61,21 @@ ns.DEFAULTS = {
 		infoCenter = "NONE",
 		infoRight = "CLOCK",
 	},
+	-- Resource alert (Alert.lua): off by default, since scanning makes the map blink.
+	alert = {
+		enabled = false,
+		onlyMoving = true,
+		interval = 2,
+		mode = "FAST",
+		sound = "RAID_WARNING",
+		screen = true,
+		chat = false,
+		repeatAfter = 30,
+		filter = "ALL",
+		names = {},
+		ignore = {},
+		frames = 1,
+	},
 	layout = {
 		snap = true,
 		positions = {},
@@ -276,6 +291,7 @@ local COMMANDS = {
 	{ "manage", L.CMD_MANAGE },
 	{ "layout", L.CMD_LAYOUT },
 	{ "scan", L.CMD_SCAN },
+	{ "alert", L.CMD_ALERT },
 	{ "add <Frame>", L.CMD_ADD },
 	{ "reset", L.CMD_RESET },
 }
@@ -302,6 +318,8 @@ SlashCmdList.MUNDI = function(msg)
 	elseif cmd == "scan" then
 		if ns.collector then ns.collector:Scan() end
 		ns.Print(L.COLLECTED:format(ns.collector and ns.collector:Count() or 0))
+	elseif cmd == "alert" or cmd == "alarm" then
+		if ns.alert then ns.alert:Command(rest) end
 	elseif cmd == "add" and rest ~= "" then
 		if ns.collector then ns.collector:AddManual(rest) end
 	elseif cmd == "reset" then
