@@ -61,19 +61,6 @@ ns.DEFAULTS = {
 		infoCenter = "NONE",
 		infoRight = "CLOCK",
 	},
-	-- Resource alert (Alert.lua), off by default.
-	alert = {
-		enabled = false,
-		onlyMoving = true,
-		interval = 2,
-		sound = "RAID_WARNING",
-		screen = true,
-		chat = false,
-		repeatAfter = 30,
-		filter = "ALL",
-		names = {},
-		ignore = {},
-	},
 	layout = {
 		snap = true,
 		positions = {},
@@ -249,6 +236,8 @@ events:SetScript("OnEvent", function(self, event, arg1)
 			ns.db.worldmap.caves = false
 			ns.db.worldmap.cavesOptIn = true
 		end
+		-- 1.1.0 had a resource alert; Blizzard closed the minimap to addons, so it is gone again.
+		ns.db.alert = nil
 		if ns.options and ns.options.Register then
 			local ok, err = pcall(ns.options.Register, ns.options)
 			if not ok then geterrorhandler()(err) end
@@ -289,7 +278,6 @@ local COMMANDS = {
 	{ "manage", L.CMD_MANAGE },
 	{ "layout", L.CMD_LAYOUT },
 	{ "scan", L.CMD_SCAN },
-	{ "alert", L.CMD_ALERT },
 	{ "add <Frame>", L.CMD_ADD },
 	{ "reset", L.CMD_RESET },
 }
@@ -316,8 +304,6 @@ SlashCmdList.MUNDI = function(msg)
 	elseif cmd == "scan" then
 		if ns.collector then ns.collector:Scan() end
 		ns.Print(L.COLLECTED:format(ns.collector and ns.collector:Count() or 0))
-	elseif cmd == "alert" or cmd == "alarm" then
-		if ns.alert then ns.alert:Command(rest) end
 	elseif cmd == "add" and rest ~= "" then
 		if ns.collector then ns.collector:AddManual(rest) end
 	elseif cmd == "reset" then
