@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 - 2026-11-28
+
+- Removed the resource alert from 1.1.0 again. Blizzard no longer lets addons read the names of the tracking dots on the minimap (they come back as secret values), so the alert could never fire. Its saved settings are cleared on login.
+
 ## 1.0.0 - 2026-11-25
 
 First release.
